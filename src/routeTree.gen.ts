@@ -9,38 +9,281 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as RoadmapRouteImport } from './routes/roadmap'
+import { Route as RecruiterRouteImport } from './routes/recruiter'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PortfolioRouteImport } from './routes/portfolio'
+import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as JobmatchRouteImport } from './routes/jobmatch'
+import { Route as InterviewRouteImport } from './routes/interview'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ResumeIndexRouteImport } from './routes/resume.index'
+import { Route as ResumeUploadRouteImport } from './routes/resume.upload'
+import { Route as ResumeAnalysisRouteImport } from './routes/resume.analysis'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoadmapRoute = RoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecruiterRoute = RecruiterRouteImport.update({
+  id: '/recruiter',
+  path: '/recruiter',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortfolioRoute = PortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobmatchRoute = JobmatchRouteImport.update({
+  id: '/jobmatch',
+  path: '/jobmatch',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InterviewRoute = InterviewRouteImport.update({
+  id: '/interview',
+  path: '/interview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResumeIndexRoute = ResumeIndexRouteImport.update({
+  id: '/resume/',
+  path: '/resume/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResumeUploadRoute = ResumeUploadRouteImport.update({
+  id: '/resume/upload',
+  path: '/resume/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResumeAnalysisRoute = ResumeAnalysisRouteImport.update({
+  id: '/resume/analysis',
+  path: '/resume/analysis',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRoute
+  '/interview': typeof InterviewRoute
+  '/jobmatch': typeof JobmatchRoute
+  '/notifications': typeof NotificationsRoute
+  '/portfolio': typeof PortfolioRoute
+  '/profile': typeof ProfileRoute
+  '/recruiter': typeof RecruiterRoute
+  '/roadmap': typeof RoadmapRoute
+  '/settings': typeof SettingsRoute
+  '/resume/analysis': typeof ResumeAnalysisRoute
+  '/resume/upload': typeof ResumeUploadRoute
+  '/resume/': typeof ResumeIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRoute
+  '/interview': typeof InterviewRoute
+  '/jobmatch': typeof JobmatchRoute
+  '/notifications': typeof NotificationsRoute
+  '/portfolio': typeof PortfolioRoute
+  '/profile': typeof ProfileRoute
+  '/recruiter': typeof RecruiterRoute
+  '/roadmap': typeof RoadmapRoute
+  '/settings': typeof SettingsRoute
+  '/resume/analysis': typeof ResumeAnalysisRoute
+  '/resume/upload': typeof ResumeUploadRoute
+  '/resume': typeof ResumeIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRoute
+  '/interview': typeof InterviewRoute
+  '/jobmatch': typeof JobmatchRoute
+  '/notifications': typeof NotificationsRoute
+  '/portfolio': typeof PortfolioRoute
+  '/profile': typeof ProfileRoute
+  '/recruiter': typeof RecruiterRoute
+  '/roadmap': typeof RoadmapRoute
+  '/settings': typeof SettingsRoute
+  '/resume/analysis': typeof ResumeAnalysisRoute
+  '/resume/upload': typeof ResumeUploadRoute
+  '/resume/': typeof ResumeIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/interview'
+    | '/jobmatch'
+    | '/notifications'
+    | '/portfolio'
+    | '/profile'
+    | '/recruiter'
+    | '/roadmap'
+    | '/settings'
+    | '/resume/analysis'
+    | '/resume/upload'
+    | '/resume/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/interview'
+    | '/jobmatch'
+    | '/notifications'
+    | '/portfolio'
+    | '/profile'
+    | '/recruiter'
+    | '/roadmap'
+    | '/settings'
+    | '/resume/analysis'
+    | '/resume/upload'
+    | '/resume'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/interview'
+    | '/jobmatch'
+    | '/notifications'
+    | '/portfolio'
+    | '/profile'
+    | '/recruiter'
+    | '/roadmap'
+    | '/settings'
+    | '/resume/analysis'
+    | '/resume/upload'
+    | '/resume/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
+  DashboardRoute: typeof DashboardRoute
+  InterviewRoute: typeof InterviewRoute
+  JobmatchRoute: typeof JobmatchRoute
+  NotificationsRoute: typeof NotificationsRoute
+  PortfolioRoute: typeof PortfolioRoute
+  ProfileRoute: typeof ProfileRoute
+  RecruiterRoute: typeof RecruiterRoute
+  RoadmapRoute: typeof RoadmapRoute
+  SettingsRoute: typeof SettingsRoute
+  ResumeAnalysisRoute: typeof ResumeAnalysisRoute
+  ResumeUploadRoute: typeof ResumeUploadRoute
+  ResumeIndexRoute: typeof ResumeIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/roadmap': {
+      id: '/roadmap'
+      path: '/roadmap'
+      fullPath: '/roadmap'
+      preLoaderRoute: typeof RoadmapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recruiter': {
+      id: '/recruiter'
+      path: '/recruiter'
+      fullPath: '/recruiter'
+      preLoaderRoute: typeof RecruiterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portfolio': {
+      id: '/portfolio'
+      path: '/portfolio'
+      fullPath: '/portfolio'
+      preLoaderRoute: typeof PortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobmatch': {
+      id: '/jobmatch'
+      path: '/jobmatch'
+      fullPath: '/jobmatch'
+      preLoaderRoute: typeof JobmatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interview': {
+      id: '/interview'
+      path: '/interview'
+      fullPath: '/interview'
+      preLoaderRoute: typeof InterviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +291,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/resume/': {
+      id: '/resume/'
+      path: '/resume'
+      fullPath: '/resume/'
+      preLoaderRoute: typeof ResumeIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resume/upload': {
+      id: '/resume/upload'
+      path: '/resume/upload'
+      fullPath: '/resume/upload'
+      preLoaderRoute: typeof ResumeUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resume/analysis': {
+      id: '/resume/analysis'
+      path: '/resume/analysis'
+      fullPath: '/resume/analysis'
+      preLoaderRoute: typeof ResumeAnalysisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
+  DashboardRoute: DashboardRoute,
+  InterviewRoute: InterviewRoute,
+  JobmatchRoute: JobmatchRoute,
+  NotificationsRoute: NotificationsRoute,
+  PortfolioRoute: PortfolioRoute,
+  ProfileRoute: ProfileRoute,
+  RecruiterRoute: RecruiterRoute,
+  RoadmapRoute: RoadmapRoute,
+  SettingsRoute: SettingsRoute,
+  ResumeAnalysisRoute: ResumeAnalysisRoute,
+  ResumeUploadRoute: ResumeUploadRoute,
+  ResumeIndexRoute: ResumeIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
