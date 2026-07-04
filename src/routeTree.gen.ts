@@ -26,6 +26,7 @@ import { Route as ResumeAnalysisRouteImport } from './routes/resume.analysis'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
 import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
+import { Route as ResumeAnalysisIdRouteImport } from './routes/resume.analysis.$id'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -112,6 +113,11 @@ const AuthForgotRoute = AuthForgotRouteImport.update({
   path: '/forgot',
   getParentRoute: () => AuthRoute,
 } as any)
+const ResumeAnalysisIdRoute = ResumeAnalysisIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ResumeAnalysisRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -128,9 +134,10 @@ export interface FileRoutesByFullPath {
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/resume/analysis': typeof ResumeAnalysisRoute
+  '/resume/analysis': typeof ResumeAnalysisRouteWithChildren
   '/resume/upload': typeof ResumeUploadRoute
   '/resume/': typeof ResumeIndexRoute
+  '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -147,9 +154,10 @@ export interface FileRoutesByTo {
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/resume/analysis': typeof ResumeAnalysisRoute
+  '/resume/analysis': typeof ResumeAnalysisRouteWithChildren
   '/resume/upload': typeof ResumeUploadRoute
   '/resume': typeof ResumeIndexRoute
+  '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -167,9 +175,10 @@ export interface FileRoutesById {
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/resume/analysis': typeof ResumeAnalysisRoute
+  '/resume/analysis': typeof ResumeAnalysisRouteWithChildren
   '/resume/upload': typeof ResumeUploadRoute
   '/resume/': typeof ResumeIndexRoute
+  '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -191,6 +200,7 @@ export interface FileRouteTypes {
     | '/resume/analysis'
     | '/resume/upload'
     | '/resume/'
+    | '/resume/analysis/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/resume/analysis'
     | '/resume/upload'
     | '/resume'
+    | '/resume/analysis/$id'
   id:
     | '__root__'
     | '/'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
     | '/resume/analysis'
     | '/resume/upload'
     | '/resume/'
+    | '/resume/analysis/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -243,7 +255,7 @@ export interface RootRouteChildren {
   RecruiterRoute: typeof RecruiterRoute
   RoadmapRoute: typeof RoadmapRoute
   SettingsRoute: typeof SettingsRoute
-  ResumeAnalysisRoute: typeof ResumeAnalysisRoute
+  ResumeAnalysisRoute: typeof ResumeAnalysisRouteWithChildren
   ResumeUploadRoute: typeof ResumeUploadRoute
   ResumeIndexRoute: typeof ResumeIndexRoute
 }
@@ -369,6 +381,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthForgotRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/resume/analysis/$id': {
+      id: '/resume/analysis/$id'
+      path: '/$id'
+      fullPath: '/resume/analysis/$id'
+      preLoaderRoute: typeof ResumeAnalysisIdRouteImport
+      parentRoute: typeof ResumeAnalysisRoute
+    }
   }
 }
 
@@ -386,6 +405,18 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface ResumeAnalysisRouteChildren {
+  ResumeAnalysisIdRoute: typeof ResumeAnalysisIdRoute
+}
+
+const ResumeAnalysisRouteChildren: ResumeAnalysisRouteChildren = {
+  ResumeAnalysisIdRoute: ResumeAnalysisIdRoute,
+}
+
+const ResumeAnalysisRouteWithChildren = ResumeAnalysisRoute._addFileChildren(
+  ResumeAnalysisRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
@@ -398,7 +429,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecruiterRoute: RecruiterRoute,
   RoadmapRoute: RoadmapRoute,
   SettingsRoute: SettingsRoute,
-  ResumeAnalysisRoute: ResumeAnalysisRoute,
+  ResumeAnalysisRoute: ResumeAnalysisRouteWithChildren,
   ResumeUploadRoute: ResumeUploadRoute,
   ResumeIndexRoute: ResumeIndexRoute,
 }

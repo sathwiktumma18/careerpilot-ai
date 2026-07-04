@@ -27,7 +27,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { mockAnalysis } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/resume/analysis")({
+export const Route = createFileRoute("/resume/analysis/$id")({
   head: () => ({ meta: [{ title: "Analysis — ResumeAI" }] }),
   component: AnalysisPage,
 });
