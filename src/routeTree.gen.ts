@@ -23,6 +23,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResumeIndexRouteImport } from './routes/resume.index'
 import { Route as ResumeUploadRouteImport } from './routes/resume.upload'
 import { Route as ResumeAnalysisRouteImport } from './routes/resume.analysis'
+import { Route as AuthSignupRouteImport } from './routes/auth.signup'
+import { Route as AuthLoginRouteImport } from './routes/auth.login'
+import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -94,10 +97,25 @@ const ResumeAnalysisRoute = ResumeAnalysisRouteImport.update({
   path: '/resume/analysis',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthSignupRoute = AuthSignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthForgotRoute = AuthForgotRouteImport.update({
+  id: '/forgot',
+  path: '/forgot',
+  getParentRoute: () => AuthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/interview': typeof InterviewRoute
   '/jobmatch': typeof JobmatchRoute
@@ -107,13 +125,16 @@ export interface FileRoutesByFullPath {
   '/recruiter': typeof RecruiterRoute
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
+  '/auth/forgot': typeof AuthForgotRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
   '/resume/analysis': typeof ResumeAnalysisRoute
   '/resume/upload': typeof ResumeUploadRoute
   '/resume/': typeof ResumeIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/interview': typeof InterviewRoute
   '/jobmatch': typeof JobmatchRoute
@@ -123,6 +144,9 @@ export interface FileRoutesByTo {
   '/recruiter': typeof RecruiterRoute
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
+  '/auth/forgot': typeof AuthForgotRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
   '/resume/analysis': typeof ResumeAnalysisRoute
   '/resume/upload': typeof ResumeUploadRoute
   '/resume': typeof ResumeIndexRoute
@@ -130,7 +154,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/interview': typeof InterviewRoute
   '/jobmatch': typeof JobmatchRoute
@@ -140,6 +164,9 @@ export interface FileRoutesById {
   '/recruiter': typeof RecruiterRoute
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
+  '/auth/forgot': typeof AuthForgotRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
   '/resume/analysis': typeof ResumeAnalysisRoute
   '/resume/upload': typeof ResumeUploadRoute
   '/resume/': typeof ResumeIndexRoute
@@ -158,6 +185,9 @@ export interface FileRouteTypes {
     | '/recruiter'
     | '/roadmap'
     | '/settings'
+    | '/auth/forgot'
+    | '/auth/login'
+    | '/auth/signup'
     | '/resume/analysis'
     | '/resume/upload'
     | '/resume/'
@@ -174,6 +204,9 @@ export interface FileRouteTypes {
     | '/recruiter'
     | '/roadmap'
     | '/settings'
+    | '/auth/forgot'
+    | '/auth/login'
+    | '/auth/signup'
     | '/resume/analysis'
     | '/resume/upload'
     | '/resume'
@@ -190,6 +223,9 @@ export interface FileRouteTypes {
     | '/recruiter'
     | '/roadmap'
     | '/settings'
+    | '/auth/forgot'
+    | '/auth/login'
+    | '/auth/signup'
     | '/resume/analysis'
     | '/resume/upload'
     | '/resume/'
@@ -197,7 +233,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   InterviewRoute: typeof InterviewRoute
   JobmatchRoute: typeof JobmatchRoute
@@ -312,12 +348,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResumeAnalysisRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/signup': {
+      id: '/auth/signup'
+      path: '/signup'
+      fullPath: '/auth/signup'
+      preLoaderRoute: typeof AuthSignupRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/login': {
+      id: '/auth/login'
+      path: '/login'
+      fullPath: '/auth/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/forgot': {
+      id: '/auth/forgot'
+      path: '/forgot'
+      fullPath: '/auth/forgot'
+      preLoaderRoute: typeof AuthForgotRouteImport
+      parentRoute: typeof AuthRoute
+    }
   }
 }
 
+interface AuthRouteChildren {
+  AuthForgotRoute: typeof AuthForgotRoute
+  AuthLoginRoute: typeof AuthLoginRoute
+  AuthSignupRoute: typeof AuthSignupRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthForgotRoute: AuthForgotRoute,
+  AuthLoginRoute: AuthLoginRoute,
+  AuthSignupRoute: AuthSignupRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   DashboardRoute: DashboardRoute,
   InterviewRoute: InterviewRoute,
   JobmatchRoute: JobmatchRoute,
