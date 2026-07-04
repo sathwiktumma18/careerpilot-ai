@@ -10,7 +10,7 @@ import { LoadingState } from "@/components/common/LoadingState";
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user);
-  const pathname = useRouterState((s) => s.location.pathname);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
