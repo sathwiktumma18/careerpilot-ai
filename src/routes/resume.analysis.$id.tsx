@@ -87,10 +87,10 @@ function AnalysisPage() {
         description={`${a.candidate.title} · ${a.candidate.location} · ${a.candidate.yearsExperience} years experience`}
         actions={
           <>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card">
+            <button onClick={handleShare} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card">
               <Share2 className="h-4 w-4" /> Share
             </button>
-            <button className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)]">
+            <button onClick={handleExport} className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)]">
               <Download className="h-4 w-4" /> Export report
             </button>
           </>
