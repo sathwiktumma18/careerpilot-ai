@@ -176,14 +176,11 @@ function SettingsPage() {
   );
 }
 
-const Field = (() => {
-  const F = (
-    { label, error, type = "text", ...rest }: React.InputHTMLAttributes<HTMLInputElement> & {
-      label: string;
-      error?: string;
-    },
-    ref: React.Ref<HTMLInputElement>,
-  ) => (
+const Field = forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }
+>(function Field({ label, error, type = "text", ...rest }, ref) {
+  return (
     <label className="block">
       <div className="mb-1.5 text-xs font-medium text-muted-foreground">{label}</div>
       <input
@@ -195,18 +192,16 @@ const Field = (() => {
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </label>
   );
-  return (require("react") as typeof import("react")).forwardRef(F);
-})();
+});
 
-const Toggle = (() => {
-  const T = (
-    { label, ...rest }: React.InputHTMLAttributes<HTMLInputElement> & { label: string },
-    ref: React.Ref<HTMLInputElement>,
-  ) => (
+const Toggle = forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement> & { label: string }
+>(function Toggle({ label, ...rest }, ref) {
+  return (
     <label className="flex items-center justify-between gap-3">
       <span className="text-sm">{label}</span>
       <input ref={ref} type="checkbox" {...rest} className="h-4 w-4 accent-primary" />
     </label>
   );
-  return (require("react") as typeof import("react")).forwardRef(T);
-})();
+});
