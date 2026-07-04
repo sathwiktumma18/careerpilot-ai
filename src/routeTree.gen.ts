@@ -23,6 +23,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResumeIndexRouteImport } from './routes/resume.index'
 import { Route as ResumeUploadRouteImport } from './routes/resume.upload'
 import { Route as ResumeAnalysisRouteImport } from './routes/resume.analysis'
+import { Route as AuthSignupRouteImport } from './routes/auth.signup'
+import { Route as AuthLoginRouteImport } from './routes/auth.login'
+import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
+import { Route as ResumeAnalysisIdRouteImport } from './routes/resume.analysis.$id'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -94,10 +98,30 @@ const ResumeAnalysisRoute = ResumeAnalysisRouteImport.update({
   path: '/resume/analysis',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthSignupRoute = AuthSignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthForgotRoute = AuthForgotRouteImport.update({
+  id: '/forgot',
+  path: '/forgot',
+  getParentRoute: () => AuthRoute,
+} as any)
+const ResumeAnalysisIdRoute = ResumeAnalysisIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ResumeAnalysisRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/interview': typeof InterviewRoute
   '/jobmatch': typeof JobmatchRoute
@@ -107,13 +131,17 @@ export interface FileRoutesByFullPath {
   '/recruiter': typeof RecruiterRoute
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
-  '/resume/analysis': typeof ResumeAnalysisRoute
+  '/auth/forgot': typeof AuthForgotRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/resume/analysis': typeof ResumeAnalysisRouteWithChildren
   '/resume/upload': typeof ResumeUploadRoute
   '/resume/': typeof ResumeIndexRoute
+  '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/interview': typeof InterviewRoute
   '/jobmatch': typeof JobmatchRoute
@@ -123,14 +151,18 @@ export interface FileRoutesByTo {
   '/recruiter': typeof RecruiterRoute
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
-  '/resume/analysis': typeof ResumeAnalysisRoute
+  '/auth/forgot': typeof AuthForgotRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/resume/analysis': typeof ResumeAnalysisRouteWithChildren
   '/resume/upload': typeof ResumeUploadRoute
   '/resume': typeof ResumeIndexRoute
+  '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/interview': typeof InterviewRoute
   '/jobmatch': typeof JobmatchRoute
@@ -140,9 +172,13 @@ export interface FileRoutesById {
   '/recruiter': typeof RecruiterRoute
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
-  '/resume/analysis': typeof ResumeAnalysisRoute
+  '/auth/forgot': typeof AuthForgotRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/resume/analysis': typeof ResumeAnalysisRouteWithChildren
   '/resume/upload': typeof ResumeUploadRoute
   '/resume/': typeof ResumeIndexRoute
+  '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -158,9 +194,13 @@ export interface FileRouteTypes {
     | '/recruiter'
     | '/roadmap'
     | '/settings'
+    | '/auth/forgot'
+    | '/auth/login'
+    | '/auth/signup'
     | '/resume/analysis'
     | '/resume/upload'
     | '/resume/'
+    | '/resume/analysis/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -174,9 +214,13 @@ export interface FileRouteTypes {
     | '/recruiter'
     | '/roadmap'
     | '/settings'
+    | '/auth/forgot'
+    | '/auth/login'
+    | '/auth/signup'
     | '/resume/analysis'
     | '/resume/upload'
     | '/resume'
+    | '/resume/analysis/$id'
   id:
     | '__root__'
     | '/'
@@ -190,14 +234,18 @@ export interface FileRouteTypes {
     | '/recruiter'
     | '/roadmap'
     | '/settings'
+    | '/auth/forgot'
+    | '/auth/login'
+    | '/auth/signup'
     | '/resume/analysis'
     | '/resume/upload'
     | '/resume/'
+    | '/resume/analysis/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRoute
+  AuthRoute: typeof AuthRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   InterviewRoute: typeof InterviewRoute
   JobmatchRoute: typeof JobmatchRoute
@@ -207,7 +255,7 @@ export interface RootRouteChildren {
   RecruiterRoute: typeof RecruiterRoute
   RoadmapRoute: typeof RoadmapRoute
   SettingsRoute: typeof SettingsRoute
-  ResumeAnalysisRoute: typeof ResumeAnalysisRoute
+  ResumeAnalysisRoute: typeof ResumeAnalysisRouteWithChildren
   ResumeUploadRoute: typeof ResumeUploadRoute
   ResumeIndexRoute: typeof ResumeIndexRoute
 }
@@ -312,12 +360,66 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResumeAnalysisRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/signup': {
+      id: '/auth/signup'
+      path: '/signup'
+      fullPath: '/auth/signup'
+      preLoaderRoute: typeof AuthSignupRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/login': {
+      id: '/auth/login'
+      path: '/login'
+      fullPath: '/auth/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/forgot': {
+      id: '/auth/forgot'
+      path: '/forgot'
+      fullPath: '/auth/forgot'
+      preLoaderRoute: typeof AuthForgotRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/resume/analysis/$id': {
+      id: '/resume/analysis/$id'
+      path: '/$id'
+      fullPath: '/resume/analysis/$id'
+      preLoaderRoute: typeof ResumeAnalysisIdRouteImport
+      parentRoute: typeof ResumeAnalysisRoute
+    }
   }
 }
 
+interface AuthRouteChildren {
+  AuthForgotRoute: typeof AuthForgotRoute
+  AuthLoginRoute: typeof AuthLoginRoute
+  AuthSignupRoute: typeof AuthSignupRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthForgotRoute: AuthForgotRoute,
+  AuthLoginRoute: AuthLoginRoute,
+  AuthSignupRoute: AuthSignupRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
+interface ResumeAnalysisRouteChildren {
+  ResumeAnalysisIdRoute: typeof ResumeAnalysisIdRoute
+}
+
+const ResumeAnalysisRouteChildren: ResumeAnalysisRouteChildren = {
+  ResumeAnalysisIdRoute: ResumeAnalysisIdRoute,
+}
+
+const ResumeAnalysisRouteWithChildren = ResumeAnalysisRoute._addFileChildren(
+  ResumeAnalysisRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthRoute: AuthRoute,
+  AuthRoute: AuthRouteWithChildren,
   DashboardRoute: DashboardRoute,
   InterviewRoute: InterviewRoute,
   JobmatchRoute: JobmatchRoute,
@@ -327,20 +429,10 @@ const rootRouteChildren: RootRouteChildren = {
   RecruiterRoute: RecruiterRoute,
   RoadmapRoute: RoadmapRoute,
   SettingsRoute: SettingsRoute,
-  ResumeAnalysisRoute: ResumeAnalysisRoute,
+  ResumeAnalysisRoute: ResumeAnalysisRouteWithChildren,
   ResumeUploadRoute: ResumeUploadRoute,
   ResumeIndexRoute: ResumeIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Upload, X, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -21,8 +22,10 @@ function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const onDrop = useCallback((files: File[]) => {
+    setError(null);
     if (files[0]) setFile(files[0]);
   }, []);
 
@@ -31,16 +34,29 @@ function UploadPage() {
     accept: { "application/pdf": [".pdf"] },
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024,
+    onDropRejected: (rejections) => {
+      const msg = rejections[0]?.errors[0]?.message ?? "File rejected";
+      setError(msg);
+      toast.error(msg);
+    },
   });
 
   async function startAnalysis() {
     if (!file) return;
-    setPhase("uploading");
-    setProgress(0);
-    const { id } = await resumeService.upload(file, setProgress);
-    setPhase("analyzing");
-    await resumeService.analyze(id);
-    navigate({ to: "/resume/analysis" });
+    setError(null);
+    try {
+      setPhase("uploading");
+      setProgress(0);
+      const { id } = await resumeService.upload(file, setProgress);
+      setPhase("analyzing");
+      await resumeService.analyze(id);
+      toast.success("Analysis complete");
+      navigate({ to: "/resume/analysis/$id", params: { id } });
+    } catch (e) {
+      setPhase("idle");
+      setError("Analysis failed. Please try again.");
+      toast.error("Analysis failed");
+    }
   }
 
   return (
@@ -96,6 +112,12 @@ function UploadPage() {
             </p>
           </div>
 
+          {error && (
+            <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
           <AnimatePresence>
             {file && (
               <motion.div
@@ -126,6 +148,7 @@ function UploadPage() {
                   <button
                     onClick={() => setFile(null)}
                     className="rounded-lg p-2 text-muted-foreground hover:text-foreground"
+                    aria-label="Remove file"
                   >
                     <X className="h-4 w-4" />
                   </button>
