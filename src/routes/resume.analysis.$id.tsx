@@ -24,8 +24,12 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
-import { mockAnalysis } from "@/lib/mockData";
+import { EmptyState } from "@/components/common/EmptyState";
+import { useResumeStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { FileText } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/resume/analysis/$id")({
   head: () => ({ meta: [{ title: "Analysis — ResumeAI" }] }),
@@ -39,7 +43,42 @@ const severityStyles = {
 } as const;
 
 function AnalysisPage() {
-  const a = mockAnalysis;
+  const { id } = Route.useParams();
+  const record = useResumeStore((s) => s.resumes.find((r) => r.id === id));
+  const selectResume = useResumeStore((s) => s.selectResume);
+
+  useEffect(() => {
+    if (record) selectResume(record.id);
+  }, [record, selectResume]);
+
+  if (!record) {
+    return (
+      <AppShell>
+        <PageHeader eyebrow="ResumeAI" title="Analysis not found" />
+        <EmptyState
+          icon={FileText}
+          title="This resume no longer exists"
+          description="It may have been deleted, or the link is invalid."
+          action={
+            <Link
+              to="/resume"
+              className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)]"
+            >
+              Back to ResumeAI
+            </Link>
+          }
+        />
+      </AppShell>
+    );
+  }
+
+  const a = record.analysis;
+  function handleExport() {
+    toast.success("Report export queued");
+  }
+  function handleShare() {
+    toast.success("Share link copied");
+  }
   return (
     <AppShell>
       <PageHeader
