@@ -16,10 +16,37 @@ import {
   type User,
   type NotificationItem,
 } from "@/lib/store";
+import { generateAnalysis, type Analysis } from "@/lib/analysis-generator";
+import { generateAnalysisAsync } from "@/lib/analysis-runner";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function generateAnalysisOffThread(id: string, fileName: string): Promise<Analysis> {
+  if (typeof Worker === "undefined") {
+    return generateAnalysis(id, fileName);
+  }
+
+  return await new Promise<Analysis>((resolve, reject) => {
+    const worker = new Worker(new URL("../lib/analysis-worker.ts", import.meta.url), {
+      type: "module",
+    });
+
+    worker.onmessage = (event) => {
+      resolve(event.data.analysis as Analysis);
+      worker.terminate();
+    };
+
+    worker.onerror = (event) => {
+      reject(event.error ?? new Error("Analysis worker failed"));
+      worker.terminate();
+    };
+
+    worker.postMessage({ id, fileName });
+  });
+}
 
 /* --------------------------------- Auth ----------------------------------- */
 
@@ -56,12 +83,23 @@ export const resumeService = {
   },
 
   async analyze(id: string): Promise<ResumeRecord> {
-    // Analysis runs inline in `addResume` for the demo (deterministic mock).
-    // Backend equivalent: POST /api/analyze?resume_id={id}
-    await sleep(900);
+    // Simulate a backend analysis pass and keep the UI thread responsive.
+    // The actual mock work is offloaded to a Web Worker when available.
     const record = useResumeStore.getState().getResume(id);
     if (!record) throw new Error("Resume not found");
-    return record;
+
+    await sleep(900);
+    const analysis = await generateAnalysisOffThread(id, record.fileName);
+    useResumeStore.getState().updateResumeAnalysis(id, analysis);
+    useNotificationStore.getState().push({
+      title: "Resume analysis complete",
+      detail: `${record.fileName} — ATS ${analysis.atsScore}`,
+      kind: "resume",
+    });
+
+    const updated = useResumeStore.getState().getResume(id);
+    if (!updated) throw new Error("Resume not found after analysis");
+    return updated;
   },
 
   async list(): Promise<ResumeRecord[]> {

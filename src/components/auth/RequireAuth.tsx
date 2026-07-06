@@ -11,10 +11,12 @@ import { LoadingState } from "@/components/common/LoadingState";
 export function RequireAuth({ children }: { children: ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Always render the same initial markup on server and client to avoid
+  // hydration mismatch. Wait for the client store to rehydrate from
+  // localStorage before deciding whether to redirect.
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // allow store to rehydrate from localStorage on first mount
     const t = setTimeout(() => setReady(true), 0);
     return () => clearTimeout(t);
   }, []);

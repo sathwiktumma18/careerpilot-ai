@@ -46,10 +46,13 @@ function AnalysisPage() {
   const { id } = Route.useParams();
   const record = useResumeStore((s) => s.resumes.find((r) => r.id === id));
   const selectResume = useResumeStore((s) => s.selectResume);
+  const selectedId = useResumeStore((s) => s.selectedId);
 
   useEffect(() => {
-    if (record) selectResume(record.id);
-  }, [record, selectResume]);
+    if (!record) return;
+    if (selectedId !== record.id) selectResume(record.id);
+  }, [record, selectResume, selectedId]);
+
 
   if (!record) {
     return (
