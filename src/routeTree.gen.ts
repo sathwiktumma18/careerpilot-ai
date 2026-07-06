@@ -21,6 +21,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResumeIndexRouteImport } from './routes/resume.index'
+import { Route as AuthIndexRouteImport } from './routes/auth.index'
 import { Route as ResumeUploadRouteImport } from './routes/resume.upload'
 import { Route as ResumeAnalysisRouteImport } from './routes/resume.analysis'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
@@ -88,6 +89,11 @@ const ResumeIndexRoute = ResumeIndexRouteImport.update({
   path: '/resume/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthIndexRoute = AuthIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthRoute,
+} as any)
 const ResumeUploadRoute = ResumeUploadRouteImport.update({
   id: '/resume/upload',
   path: '/resume/upload',
@@ -136,12 +142,12 @@ export interface FileRoutesByFullPath {
   '/auth/signup': typeof AuthSignupRoute
   '/resume/analysis': typeof ResumeAnalysisRouteWithChildren
   '/resume/upload': typeof ResumeUploadRoute
+  '/auth/': typeof AuthIndexRoute
   '/resume/': typeof ResumeIndexRoute
   '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRouteWithChildren
   '/dashboard': typeof DashboardRoute
   '/interview': typeof InterviewRoute
   '/jobmatch': typeof JobmatchRoute
@@ -156,6 +162,7 @@ export interface FileRoutesByTo {
   '/auth/signup': typeof AuthSignupRoute
   '/resume/analysis': typeof ResumeAnalysisRouteWithChildren
   '/resume/upload': typeof ResumeUploadRoute
+  '/auth': typeof AuthIndexRoute
   '/resume': typeof ResumeIndexRoute
   '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
 }
@@ -177,6 +184,7 @@ export interface FileRoutesById {
   '/auth/signup': typeof AuthSignupRoute
   '/resume/analysis': typeof ResumeAnalysisRouteWithChildren
   '/resume/upload': typeof ResumeUploadRoute
+  '/auth/': typeof AuthIndexRoute
   '/resume/': typeof ResumeIndexRoute
   '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
 }
@@ -199,12 +207,12 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/resume/analysis'
     | '/resume/upload'
+    | '/auth/'
     | '/resume/'
     | '/resume/analysis/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/auth'
     | '/dashboard'
     | '/interview'
     | '/jobmatch'
@@ -219,6 +227,7 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/resume/analysis'
     | '/resume/upload'
+    | '/auth'
     | '/resume'
     | '/resume/analysis/$id'
   id:
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/resume/analysis'
     | '/resume/upload'
+    | '/auth/'
     | '/resume/'
     | '/resume/analysis/$id'
   fileRoutesById: FileRoutesById
@@ -346,6 +356,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResumeIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/': {
+      id: '/auth/'
+      path: '/'
+      fullPath: '/auth/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/resume/upload': {
       id: '/resume/upload'
       path: '/resume/upload'
@@ -395,12 +412,14 @@ interface AuthRouteChildren {
   AuthForgotRoute: typeof AuthForgotRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthSignupRoute: typeof AuthSignupRoute
+  AuthIndexRoute: typeof AuthIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthForgotRoute: AuthForgotRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthSignupRoute: AuthSignupRoute,
+  AuthIndexRoute: AuthIndexRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
@@ -436,3 +455,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
