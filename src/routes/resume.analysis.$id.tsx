@@ -48,8 +48,9 @@ function AnalysisPage() {
   const selectResume = useResumeStore((s) => s.selectResume);
 
   useEffect(() => {
-    if (record) selectResume(record.id);
-  }, [record, selectResume]);
+    if (id) selectResume(id);
+  }, [id, selectResume]);
+
 
   if (!record) {
     return (
