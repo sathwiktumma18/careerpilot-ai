@@ -12,9 +12,21 @@ export const Route = createFileRoute("/recruiter")({
         icon={Users}
         description="Source and shortlist candidates from the CareerPilot talent graph with AI-ranked pipelines."
         features={[
-          { title: "AI sourcing", detail: "Natural-language search across candidate embeddings.", icon: Search },
-          { title: "Pipelines", detail: "Kanban stages, notes, and collaborative review.", icon: Inbox },
-          { title: "Advanced filters", detail: "Skills, seniority, comp, location, availability.", icon: Filter },
+          {
+            title: "AI sourcing",
+            detail: "Natural-language search across candidate embeddings.",
+            icon: Search,
+          },
+          {
+            title: "Pipelines",
+            detail: "Kanban stages, notes, and collaborative review.",
+            icon: Inbox,
+          },
+          {
+            title: "Advanced filters",
+            detail: "Skills, seniority, comp, location, availability.",
+            icon: Filter,
+          },
         ]}
       />
     </AppShell>

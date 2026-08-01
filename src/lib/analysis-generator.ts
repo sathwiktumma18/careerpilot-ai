@@ -60,10 +60,31 @@ const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n
 /* --------------------------------- catalog --------------------------------- */
 
 const SKILL_POOL = [
-  "React", "TypeScript", "Node.js", "Python", "PostgreSQL", "MongoDB", "AWS",
-  "GCP", "Docker", "Kubernetes", "GraphQL", "REST APIs", "Tailwind CSS",
-  "Next.js", "Redis", "Kafka", "Terraform", "CI/CD", "System Design",
-  "Distributed Systems", "Go", "Rust", "Jest", "Playwright", "Figma",
+  "React",
+  "TypeScript",
+  "Node.js",
+  "Python",
+  "PostgreSQL",
+  "MongoDB",
+  "AWS",
+  "GCP",
+  "Docker",
+  "Kubernetes",
+  "GraphQL",
+  "REST APIs",
+  "Tailwind CSS",
+  "Next.js",
+  "Redis",
+  "Kafka",
+  "Terraform",
+  "CI/CD",
+  "System Design",
+  "Distributed Systems",
+  "Go",
+  "Rust",
+  "Jest",
+  "Playwright",
+  "Figma",
 ];
 
 const ROLE_TEMPLATES = [
@@ -86,24 +107,64 @@ const TITLES = [
   "Backend Engineer",
 ];
 
-const LOCATIONS = ["Berlin, DE", "Remote", "London, UK", "Amsterdam, NL", "Lisbon, PT", "New York, US"];
+const LOCATIONS = [
+  "Berlin, DE",
+  "Remote",
+  "London, UK",
+  "Amsterdam, NL",
+  "Lisbon, PT",
+  "New York, US",
+];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
 
 const SUGGESTION_BANK: Suggestion[] = [
-  { title: "Quantify your impact", detail: "Add measurable outcomes to your top bullets — revenue lift, latency reduction, or user growth.", severity: "high" },
-  { title: "Front-load senior keywords", detail: "Rework the summary so 'systems design', 'mentorship', and 'reliability' appear in the first two lines.", severity: "medium" },
-  { title: "Trim early-career section", detail: "Condense pre-2020 experience to a single line per role to stay under 1.5 pages.", severity: "low" },
-  { title: "Add a projects section", detail: "Surface 2 open-source or side projects to strengthen the platform-engineering angle.", severity: "medium" },
-  { title: "Tighten formatting", detail: "Unify bullet punctuation and use a single date format across all roles.", severity: "low" },
-  { title: "Highlight leadership", detail: "Call out team size, cross-team collaboration, and hiring impact where relevant.", severity: "high" },
-  { title: "Add measurable KPIs", detail: "Attach concrete metrics (%, ms, $) to at least 60% of your bullets.", severity: "medium" },
+  {
+    title: "Quantify your impact",
+    detail:
+      "Add measurable outcomes to your top bullets — revenue lift, latency reduction, or user growth.",
+    severity: "high",
+  },
+  {
+    title: "Front-load senior keywords",
+    detail:
+      "Rework the summary so 'systems design', 'mentorship', and 'reliability' appear in the first two lines.",
+    severity: "medium",
+  },
+  {
+    title: "Trim early-career section",
+    detail: "Condense pre-2020 experience to a single line per role to stay under 1.5 pages.",
+    severity: "low",
+  },
+  {
+    title: "Add a projects section",
+    detail: "Surface 2 open-source or side projects to strengthen the platform-engineering angle.",
+    severity: "medium",
+  },
+  {
+    title: "Tighten formatting",
+    detail: "Unify bullet punctuation and use a single date format across all roles.",
+    severity: "low",
+  },
+  {
+    title: "Highlight leadership",
+    detail: "Call out team size, cross-team collaboration, and hiring impact where relevant.",
+    severity: "high",
+  },
+  {
+    title: "Add measurable KPIs",
+    detail: "Attach concrete metrics (%, ms, $) to at least 60% of your bullets.",
+    severity: "medium",
+  },
 ];
 
 /* --------------------------------- builder --------------------------------- */
 
 function titleCaseFromFilename(fileName: string): string {
-  const base = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+  const base = fileName
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_-]+/g, " ")
+    .trim();
   const parts = base.split(/\s+/).filter(Boolean).slice(0, 3);
   if (!parts.length) return "Candidate";
   return parts
@@ -113,8 +174,8 @@ function titleCaseFromFilename(fileName: string): string {
 
 export function generateAnalysis(id: string, fileName: string): Analysis {
   const rand = seeded(hash(id + "::" + fileName));
-  const pick = <T,>(arr: T[]) => arr[Math.floor(rand() * arr.length)];
-  const pickN = <T,>(arr: T[], n: number) => {
+  const pick = <T>(arr: T[]) => arr[Math.floor(rand() * arr.length)];
+  const pickN = <T>(arr: T[], n: number) => {
     const copy = [...arr];
     const out: T[] = [];
     for (let i = 0; i < n && copy.length; i++) {
@@ -154,7 +215,12 @@ export function generateAnalysis(id: string, fileName: string): Analysis {
   }));
 
   const skillsRadar: RadarPoint[] = [
-    "Frontend", "Backend", "DevOps", "Product", "Leadership", "Design",
+    "Frontend",
+    "Backend",
+    "DevOps",
+    "Product",
+    "Leadership",
+    "Design",
   ].map((area) => ({ area, value: clamp(Math.round(55 + rand() * 45), 50, 99) }));
 
   const scoreBreakdown: ScoreBreakdown[] = [
@@ -170,7 +236,10 @@ export function generateAnalysis(id: string, fileName: string): Analysis {
   const title = pick(TITLES);
   const location = pick(LOCATIONS);
 
-  const topSkills = detected.slice(0, 3).map((s) => s.name).join(", ");
+  const topSkills = detected
+    .slice(0, 3)
+    .map((s) => s.name)
+    .join(", ");
   const summary =
     `${title} with ${yearsExperience} years of experience shipping production software. ` +
     `Strong in ${topSkills}. Track record of leading initiatives, mentoring engineers, and ` +

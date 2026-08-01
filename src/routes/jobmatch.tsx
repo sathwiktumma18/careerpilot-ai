@@ -12,9 +12,21 @@ export const Route = createFileRoute("/jobmatch")({
         icon={Briefcase}
         description="Rank thousands of open roles by fit, salary, and career trajectory using your resume graph."
         features={[
-          { title: "Fit scoring", detail: "Personalized match % across skills, seniority, and comp.", icon: Target },
-          { title: "Real-time feeds", detail: "Continuous ingestion from top job boards and ATS partners.", icon: Zap },
-          { title: "Smart filters", detail: "Location, remote, salary, and stage — save preferred queries.", icon: Filter },
+          {
+            title: "Fit scoring",
+            detail: "Personalized match % across skills, seniority, and comp.",
+            icon: Target,
+          },
+          {
+            title: "Real-time feeds",
+            detail: "Continuous ingestion from top job boards and ATS partners.",
+            icon: Zap,
+          },
+          {
+            title: "Smart filters",
+            detail: "Location, remote, salary, and stage — save preferred queries.",
+            icon: Filter,
+          },
         ]}
       />
     </AppShell>

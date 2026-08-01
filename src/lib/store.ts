@@ -47,7 +47,10 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       async login(email, _password) {
         await new Promise((r) => setTimeout(r, 500));
-        const name = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        const name = email
+          .split("@")[0]
+          .replace(/[._-]+/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase());
         const user: User = {
           id: crypto.randomUUID(),
           name,
@@ -85,7 +88,17 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null });
       },
       updateProfile(patch) {
-        set((s) => (s.user ? { user: { ...s.user, ...patch, avatarInitials: patch.name ? initials(patch.name) : s.user.avatarInitials } } : s));
+        set((s) =>
+          s.user
+            ? {
+                user: {
+                  ...s.user,
+                  ...patch,
+                  avatarInitials: patch.name ? initials(patch.name) : s.user.avatarInitials,
+                },
+              }
+            : s,
+        );
       },
     }),
     { name: "careerpilot.auth", storage: createJSONStorage(() => localStorage) },
@@ -148,7 +161,12 @@ export const useResumeStore = create<ResumeState>()(
           fileName: file.name,
           sizeKb: Math.round(file.size / 1024),
           uploadedAt: new Date().toISOString(),
-          analysis: { ...EMPTY_ANALYSIS, id, fileName: file.name, uploadedAt: new Date().toISOString() },
+          analysis: {
+            ...EMPTY_ANALYSIS,
+            id,
+            fileName: file.name,
+            uploadedAt: new Date().toISOString(),
+          },
         };
         set((s) => ({ resumes: [record, ...s.resumes], selectedId: id }));
         // fire an app notification for upload, analysis completes after the worker finishes.

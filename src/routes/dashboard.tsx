@@ -36,10 +36,30 @@ function Dashboard() {
       : 0;
     const matched = resumes.reduce((a, r) => a + r.analysis.recommendedRoles.length, 0);
     return [
-      { label: "Resumes Analyzed", value: String(resumes.length), delta: resumes.length ? "+1 recent" : "—", trend: "up" as const },
-      { label: "Avg ATS Score", value: avg ? String(avg) : "—", delta: avg ? (avg >= 75 ? "Strong" : "Growing") : "—", trend: "up" as const },
-      { label: "Matched Roles", value: String(matched), delta: matched ? `+${Math.min(matched, 12)}` : "—", trend: "up" as const },
-      { label: "Interviews Ready", value: String(Math.max(0, Math.floor(avg / 10))), delta: avg ? "+2" : "—", trend: "up" as const },
+      {
+        label: "Resumes Analyzed",
+        value: String(resumes.length),
+        delta: resumes.length ? "+1 recent" : "—",
+        trend: "up" as const,
+      },
+      {
+        label: "Avg ATS Score",
+        value: avg ? String(avg) : "—",
+        delta: avg ? (avg >= 75 ? "Strong" : "Growing") : "—",
+        trend: "up" as const,
+      },
+      {
+        label: "Matched Roles",
+        value: String(matched),
+        delta: matched ? `+${Math.min(matched, 12)}` : "—",
+        trend: "up" as const,
+      },
+      {
+        label: "Interviews Ready",
+        value: String(Math.max(0, Math.floor(avg / 10))),
+        delta: avg ? "+2" : "—",
+        trend: "up" as const,
+      },
     ];
   })();
 
@@ -193,9 +213,21 @@ function Dashboard() {
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         {[
-          { to: "/resume" as const, title: "ResumeAI", desc: "Analyze and improve your resume with ATS-grade AI feedback." },
-          { to: "/jobmatch" as const, title: "JobMatch AI", desc: "Get ranked matches from thousands of open roles." },
-          { to: "/interview" as const, title: "InterviewAI", desc: "Practice with realistic AI-driven mock interviews." },
+          {
+            to: "/resume" as const,
+            title: "ResumeAI",
+            desc: "Analyze and improve your resume with ATS-grade AI feedback.",
+          },
+          {
+            to: "/jobmatch" as const,
+            title: "JobMatch AI",
+            desc: "Get ranked matches from thousands of open roles.",
+          },
+          {
+            to: "/interview" as const,
+            title: "InterviewAI",
+            desc: "Practice with realistic AI-driven mock interviews.",
+          },
         ].map((c, i) => (
           <motion.div
             key={c.to}

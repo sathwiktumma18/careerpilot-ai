@@ -12,9 +12,21 @@ export const Route = createFileRoute("/roadmap")({
         icon={Map}
         description="A personalized 12-month plan to reach your next role, with milestones, courses, and check-ins."
         features={[
-          { title: "Path planner", detail: "Goal-driven roadmap generated from your current profile.", icon: Compass },
-          { title: "Milestones", detail: "Weekly and monthly checkpoints with adaptive re-planning.", icon: Milestone },
-          { title: "Curated resources", detail: "Courses, books, and projects matched to each stage.", icon: BookOpen },
+          {
+            title: "Path planner",
+            detail: "Goal-driven roadmap generated from your current profile.",
+            icon: Compass,
+          },
+          {
+            title: "Milestones",
+            detail: "Weekly and monthly checkpoints with adaptive re-planning.",
+            icon: Milestone,
+          },
+          {
+            title: "Curated resources",
+            detail: "Courses, books, and projects matched to each stage.",
+            icon: BookOpen,
+          },
         ]}
       />
     </AppShell>

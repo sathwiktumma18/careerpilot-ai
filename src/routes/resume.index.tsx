@@ -45,9 +45,27 @@ function ResumeHome() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Resumes analyzed" value={String(resumes.length)} delta={resumes.length ? "+1 recent" : "—"} trend="up" index={0} />
-        <StatCard label="Avg ATS score" value={avg ? String(avg) : "—"} delta={avg ? (avg >= 75 ? "Strong" : "Growing") : "—"} trend="up" index={1} />
-        <StatCard label="Roles matched" value={String(matched)} delta={matched ? `+${Math.min(matched, 12)}` : "—"} trend="up" index={2} />
+        <StatCard
+          label="Resumes analyzed"
+          value={String(resumes.length)}
+          delta={resumes.length ? "+1 recent" : "—"}
+          trend="up"
+          index={0}
+        />
+        <StatCard
+          label="Avg ATS score"
+          value={avg ? String(avg) : "—"}
+          delta={avg ? (avg >= 75 ? "Strong" : "Growing") : "—"}
+          trend="up"
+          index={1}
+        />
+        <StatCard
+          label="Roles matched"
+          value={String(matched)}
+          delta={matched ? `+${Math.min(matched, 12)}` : "—"}
+          trend="up"
+          index={2}
+        />
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
@@ -89,13 +107,16 @@ function ResumeHome() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{r.fileName}</div>
                     <div className="text-xs text-muted-foreground">
-                      {r.analysis.candidate.title} · {formatDistanceToNow(new Date(r.uploadedAt), { addSuffix: true })}
+                      {r.analysis.candidate.title} ·{" "}
+                      {formatDistanceToNow(new Date(r.uploadedAt), { addSuffix: true })}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <div className="text-xs text-muted-foreground">ATS</div>
-                      <div className="text-sm font-semibold text-primary">{r.analysis.atsScore}</div>
+                      <div className="text-sm font-semibold text-primary">
+                        {r.analysis.atsScore}
+                      </div>
                     </div>
                     <Link
                       to="/resume/analysis/$id"

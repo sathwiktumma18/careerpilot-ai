@@ -12,9 +12,21 @@ export const Route = createFileRoute("/interview")({
         icon={MessagesSquare}
         description="Realistic AI mock interviews with voice, adaptive difficulty, and post-session scoring."
         features={[
-          { title: "Voice interviews", detail: "Low-latency spoken sessions with follow-up probing.", icon: Mic },
-          { title: "Adaptive AI", detail: "Behavioral, system design, and role-specific tracks.", icon: Brain },
-          { title: "Scored feedback", detail: "Structured signals, transcripts, and improvement plan.", icon: BarChart3 },
+          {
+            title: "Voice interviews",
+            detail: "Low-latency spoken sessions with follow-up probing.",
+            icon: Mic,
+          },
+          {
+            title: "Adaptive AI",
+            detail: "Behavioral, system design, and role-specific tracks.",
+            icon: Brain,
+          },
+          {
+            title: "Scored feedback",
+            detail: "Structured signals, transcripts, and improvement plan.",
+            icon: BarChart3,
+          },
         ]}
       />
     </AppShell>

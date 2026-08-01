@@ -21,4 +21,3 @@ export async function generateAnalysisAsync(
   // it is called only after a yield.
   return generateAnalysis(id, fileName);
 }
-

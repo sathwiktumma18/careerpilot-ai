@@ -1,9 +1,12 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { Outlet, createFileRoute } from "@tanstack/react-router";
 
+/**
+ * Layout route for /auth/*.
+ * IMPORTANT: do NOT put a `beforeLoad` redirect here — a parent route's
+ * `beforeLoad` runs for every child match, so redirecting to /auth/login
+ * from here would loop forever (ERR_TOO_MANY_REDIRECTS).
+ * The bare `/auth` redirect lives in `auth.index.tsx`.
+ */
 export const Route = createFileRoute("/auth")({
-  // Parent auth route: keep this route present for the file-based
-  // routing hierarchy but do not redirect unconditionally. Redirects
-  // to individual auth pages are handled by explicit links or the
-  // index route. Avoiding a forced redirect here prevents an SSR
-  // redirect loop when rendering child routes like `/auth/login`.
+  component: () => <Outlet />,
 });

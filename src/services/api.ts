@@ -21,7 +21,6 @@ import { generateAnalysisAsync } from "@/lib/analysis-runner";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function generateAnalysisOffThread(id: string, fileName: string): Promise<Analysis> {
@@ -171,16 +170,33 @@ export const dashboardService = {
     const avgAts = resumes.length
       ? Math.round(resumes.reduce((a, r) => a + r.analysis.atsScore, 0) / resumes.length)
       : 0;
-    const matchedRoles = resumes.reduce(
-      (a, r) => a + r.analysis.recommendedRoles.length,
-      0,
-    );
+    const matchedRoles = resumes.reduce((a, r) => a + r.analysis.recommendedRoles.length, 0);
     return {
       stats: [
-        { label: "Resumes Analyzed", value: String(resumes.length), delta: resumes.length ? "+1 this week" : "—", trend: "up" as const },
-        { label: "Avg ATS Score", value: String(avgAts || "—"), delta: avgAts ? `${avgAts >= 75 ? "Strong" : "Growing"}` : "—", trend: "up" as const },
-        { label: "Matched Roles", value: String(matchedRoles), delta: matchedRoles ? `+${Math.min(matchedRoles, 12)}` : "—", trend: "up" as const },
-        { label: "Interviews Ready", value: String(Math.max(0, Math.floor(avgAts / 10))), delta: avgAts ? "+2" : "—", trend: "up" as const },
+        {
+          label: "Resumes Analyzed",
+          value: String(resumes.length),
+          delta: resumes.length ? "+1 this week" : "—",
+          trend: "up" as const,
+        },
+        {
+          label: "Avg ATS Score",
+          value: String(avgAts || "—"),
+          delta: avgAts ? `${avgAts >= 75 ? "Strong" : "Growing"}` : "—",
+          trend: "up" as const,
+        },
+        {
+          label: "Matched Roles",
+          value: String(matchedRoles),
+          delta: matchedRoles ? `+${Math.min(matchedRoles, 12)}` : "—",
+          trend: "up" as const,
+        },
+        {
+          label: "Interviews Ready",
+          value: String(Math.max(0, Math.floor(avgAts / 10))),
+          delta: avgAts ? "+2" : "—",
+          trend: "up" as const,
+        },
       ],
       activity,
     };

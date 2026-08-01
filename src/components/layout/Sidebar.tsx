@@ -46,7 +46,9 @@ export function Sidebar() {
         </div>
         <div className="flex flex-col leading-tight">
           <span className="text-sm font-semibold">CareerPilot</span>
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">AI Suite</span>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            AI Suite
+          </span>
         </div>
       </div>
 

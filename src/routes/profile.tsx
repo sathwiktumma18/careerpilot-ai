@@ -61,7 +61,11 @@ function ProfilePage() {
 
   return (
     <AppShell>
-      <PageHeader eyebrow="Account" title="Profile" description="Your public CareerPilot identity." />
+      <PageHeader
+        eyebrow="Account"
+        title="Profile"
+        description="Your public CareerPilot identity."
+      />
 
       <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6 lg:grid-cols-3">
         <div className="glass rounded-2xl p-6 text-center">
@@ -86,7 +90,12 @@ function ProfilePage() {
           <h3 className="text-sm font-semibold">Personal information</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="Full name" error={errors.name?.message} {...register("name")} />
-            <Field label="Email" type="email" error={errors.email?.message} {...register("email")} />
+            <Field
+              label="Email"
+              type="email"
+              error={errors.email?.message}
+              {...register("email")}
+            />
             <Field label="Job title" error={errors.title?.message} {...register("title")} />
             <Field label="Location" error={errors.location?.message} {...register("location")} />
             <Field
@@ -131,7 +140,6 @@ function ProfilePage() {
     </AppShell>
   );
 }
-
 
 const Field = forwardRef<
   HTMLInputElement,

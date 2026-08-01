@@ -38,8 +38,8 @@ export function ComingSoon({
           </div>
           <h2 className="mt-6 text-2xl font-semibold">{module} is on the roadmap</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-            We're actively building this module. Join the waitlist to get early access and shape
-            the launch.
+            We're actively building this module. Join the waitlist to get early access and shape the
+            launch.
           </p>
         </div>
       </motion.div>

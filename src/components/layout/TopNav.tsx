@@ -1,4 +1,11 @@
-import { Bell, Search, Command, LogOut, User as UserIcon, Settings as SettingsIcon } from "lucide-react";
+import {
+  Bell,
+  Search,
+  Command,
+  LogOut,
+  User as UserIcon,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -80,7 +87,10 @@ export function TopNav() {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="cursor-pointer text-destructive focus:text-destructive"
+            >
               <LogOut className="mr-2 h-4 w-4" /> Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -96,9 +96,18 @@ function SettingsPage() {
         <div className="glass rounded-2xl p-6 lg:col-span-2">
           <h3 className="text-sm font-semibold">Workspace</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="Workspace name" error={errors.workspaceName?.message} {...register("workspaceName")} />
+            <Field
+              label="Workspace name"
+              error={errors.workspaceName?.message}
+              {...register("workspaceName")}
+            />
             <Field label="Subdomain" error={errors.subdomain?.message} {...register("subdomain")} />
-            <Field label="Support email" type="email" error={errors.supportEmail?.message} {...register("supportEmail")} />
+            <Field
+              label="Support email"
+              type="email"
+              error={errors.supportEmail?.message}
+              {...register("supportEmail")}
+            />
             <Field label="Time zone" error={errors.timezone?.message} {...register("timezone")} />
           </div>
 

@@ -57,9 +57,7 @@ function SignupPage() {
         </div>
 
         <h1 className="text-2xl font-semibold tracking-tight">Create your account</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          14-day trial. No credit card required.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">14-day trial. No credit card required.</p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
           <div>
@@ -82,10 +80,14 @@ function SignupPage() {
               {...register("email")}
               className="h-10 w-full rounded-lg border border-input bg-card/50 px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
-            {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>}
+            {errors.email && (
+              <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>
+            )}
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Password</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              Password
+            </label>
             <input
               type="password"
               placeholder="••••••••"

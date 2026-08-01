@@ -54,7 +54,8 @@ export const mockAnalysis = {
     },
     {
       title: "Add a projects section",
-      detail: "Surface 2 open-source or side projects to strengthen the platform-engineering angle.",
+      detail:
+        "Surface 2 open-source or side projects to strengthen the platform-engineering angle.",
       severity: "medium",
     },
   ],

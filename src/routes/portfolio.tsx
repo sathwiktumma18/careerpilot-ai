@@ -12,9 +12,21 @@ export const Route = createFileRoute("/portfolio")({
         icon={Palette}
         description="Turn your resume and projects into a polished portfolio site in one click."
         features={[
-          { title: "AI templates", detail: "Design directions matched to your role and vibe.", icon: LayoutTemplate },
-          { title: "One-click generate", detail: "Full site content from your resume and repos.", icon: Wand2 },
-          { title: "Custom domain", detail: "Publish to a your-name.dev URL in seconds.", icon: Globe },
+          {
+            title: "AI templates",
+            detail: "Design directions matched to your role and vibe.",
+            icon: LayoutTemplate,
+          },
+          {
+            title: "One-click generate",
+            detail: "Full site content from your resume and repos.",
+            icon: Wand2,
+          },
+          {
+            title: "Custom domain",
+            detail: "Publish to a your-name.dev URL in seconds.",
+            icon: Globe,
+          },
         ]}
       />
     </AppShell>

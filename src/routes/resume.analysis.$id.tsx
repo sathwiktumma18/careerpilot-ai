@@ -38,7 +38,8 @@ export const Route = createFileRoute("/resume/analysis/$id")({
 
 const severityStyles = {
   high: "bg-destructive/10 text-destructive border-destructive/20",
-  medium: "bg-[color:var(--warning)]/10 text-[color:var(--warning)] border-[color:var(--warning)]/20",
+  medium:
+    "bg-[color:var(--warning)]/10 text-[color:var(--warning)] border-[color:var(--warning)]/20",
   low: "bg-primary/10 text-primary border-primary/20",
 } as const;
 
@@ -52,7 +53,6 @@ function AnalysisPage() {
     if (!record) return;
     if (selectedId !== record.id) selectResume(record.id);
   }, [record, selectResume, selectedId]);
-
 
   if (!record) {
     return (
@@ -90,10 +90,16 @@ function AnalysisPage() {
         description={`${a.candidate.title} · ${a.candidate.location} · ${a.candidate.yearsExperience} years experience`}
         actions={
           <>
-            <button onClick={handleShare} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card">
+            <button
+              onClick={handleShare}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card"
+            >
               <Share2 className="h-4 w-4" /> Share
             </button>
-            <button onClick={handleExport} className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)]">
+            <button
+              onClick={handleExport}
+              className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)]"
+            >
               <Download className="h-4 w-4" /> Export report
             </button>
           </>
@@ -196,11 +202,7 @@ function AnalysisPage() {
                         fontSize: 12,
                       }}
                     />
-                    <Bar
-                      dataKey="level"
-                      fill="oklch(0.65 0.19 258)"
-                      radius={[0, 6, 6, 0]}
-                    />
+                    <Bar dataKey="level" fill="oklch(0.65 0.19 258)" radius={[0, 6, 6, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
