@@ -1,31 +1,106 @@
-"""Resume analysis service. Inject AI providers here (OpenAI, Anthropic, etc.)."""
+"""Resume upload + analysis orchestration.
+
+Uploads are stored on disk (data/uploads) and metadata/text/analysis in the
+database. Analysis runs through the provider chain (ai_provider) and always
+returns a schema-valid `AnalysisResponse` — from Gemini, Ollama, or the
+deterministic fallback, whichever is available.
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from pathlib import Path
 from uuid import uuid4
 
-from app.schemas.resume import AnalysisResponse, SkillScore
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.config.settings import settings
+from app.models.resume import Resume
+from app.schemas.resume import AnalysisResponse
+from app.services import ai_provider
+from app.services.pdf_parser import PdfParseError, extract_text
+from app.utils.files import ensure_dir
+
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+
+class ResumeNotFoundError(Exception):
+    pass
+
+
+class UploadRejectedError(Exception):
+    pass
 
 
 class ResumeService:
-    async def register_upload(self, file_name: str) -> dict:
-        return {"id": str(uuid4()), "file_name": file_name}
+    def register_upload(self, db: Session, *, file_name: str, file_bytes: bytes) -> Resume:
+        if not file_bytes:
+            raise UploadRejectedError("Empty file")
+        if len(file_bytes) > MAX_UPLOAD_BYTES:
+            raise UploadRejectedError("File exceeds the 10MB limit")
 
-    async def analyze(self, resume_id: str) -> AnalysisResponse:
-        # TODO: call AI provider, parse PDF, run scoring pipeline
-        return AnalysisResponse(
+        resume_id = str(uuid4())
+        upload_dir = ensure_dir(Path(settings.upload_dir))
+        path = upload_dir / f"{resume_id}.pdf"
+        path.write_bytes(file_bytes)
+
+        resume = Resume(
             id=resume_id,
-            ats_score=82,
-            summary="Placeholder analysis. Wire an AI provider in ResumeService.analyze().",
-            detected_skills=[
-                SkillScore(name="React", level=95),
-                SkillScore(name="TypeScript", level=92),
-                SkillScore(name="Node.js", level=88),
-            ],
-            missing_skills=["Kubernetes", "Terraform", "System Design"],
-            suggestions=[
-                "Quantify impact with metrics",
-                "Front-load senior keywords",
-                "Trim early-career experience",
-            ],
+            file_name=file_name,
+            file_path=str(path),
+            status="uploaded",
         )
+        db.add(resume)
+        db.commit()
+        db.refresh(resume)
+        return resume
+
+    def get(self, db: Session, resume_id: str) -> Resume:
+        resume = db.get(Resume, resume_id)
+        if resume is None:
+            raise ResumeNotFoundError(resume_id)
+        return resume
+
+    def list(self, db: Session) -> list[Resume]:
+        stmt = select(Resume).order_by(Resume.created_at.desc())
+        return list(db.scalars(stmt))
+
+    def delete(self, db: Session, resume_id: str) -> None:
+        resume = db.get(Resume, resume_id)
+        if resume is None:
+            raise ResumeNotFoundError(resume_id)
+        # Best-effort cleanup of the stored PDF; the DB row is the source of truth.
+        try:
+            Path(resume.file_path).unlink(missing_ok=True)
+        except OSError:
+            pass
+        db.delete(resume)
+        db.commit()
+
+    async def analyze(self, db: Session, resume_id: str) -> AnalysisResponse:
+        resume = self.get(db, resume_id)
+
+        # Re-analysis is cheap to re-run and keeps output fresh; only reuse the
+        # stored result if a previous analysis exists AND text extraction worked.
+        if resume.status == "analyzed" and resume.analysis:
+            return AnalysisResponse.model_validate(resume.analysis)
+
+        try:
+            text = resume.text or extract_text(resume.file_path)
+        except PdfParseError as exc:
+            resume.status = "error"
+            db.commit()
+            raise UploadRejectedError(str(exc)) from exc
+
+        analysis = await ai_provider.analyze_resume(resume.id, resume.file_name, text)
+
+        resume.text = text
+        resume.analysis = analysis.model_dump(mode="json")
+        resume.ats_score = analysis.ats_score
+        resume.status = "analyzed"
+        resume.analyzed_at = datetime.now(timezone.utc)
+        db.commit()
+        return analysis
 
 
 resume_service = ResumeService()
