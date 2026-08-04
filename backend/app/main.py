@@ -3,16 +3,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-import app.models  # noqa: F401  # register ORM models before create_all
 from app.config.settings import settings
-from app.database.session import Base, engine
+from app.database.migrate import run_migrations
 from app.routes import auth, dashboard, interview, job_match, profile, resume, roadmap
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Dev-friendly schema bootstrap. Migrations (Alembic) replace this in Phase 3.
-    Base.metadata.create_all(bind=engine)
+    # Schema is owned by Alembic migrations; upgrade is idempotent.
+    run_migrations()
     yield
 
 
