@@ -26,6 +26,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { useResumeStore } from "@/lib/store";
+import { exportAnalysisReport } from "@/lib/report-export";
+import { resumeService } from "@/services/api";
 import { cn } from "@/lib/utils";
 import { FileText } from "lucide-react";
 import { useEffect } from "react";
@@ -54,6 +56,13 @@ function AnalysisPage() {
     if (selectedId !== record.id) selectResume(record.id);
   }, [record, selectResume, selectedId]);
 
+  // Cold-store hydration: a direct visit to /resume/analysis/<id> (fresh
+  // reload) may arrive before the store has synced — pull it from the backend.
+  useEffect(() => {
+    if (record) return;
+    resumeService.get(id).catch(() => toast.error("Could not load this analysis"));
+  }, [id, record]);
+
   if (!record) {
     return (
       <AppShell>
@@ -76,8 +85,14 @@ function AnalysisPage() {
   }
 
   const a = record.analysis;
-  function handleExport() {
-    toast.success("Report export queued");
+  async function handleExport() {
+    try {
+      await exportAnalysisReport(a);
+      toast.success("Report downloaded");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not generate the report");
+    }
   }
   function handleShare() {
     toast.success("Share link copied");

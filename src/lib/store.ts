@@ -6,7 +6,7 @@
  */
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { generateAnalysis, type Analysis } from "./analysis-generator";
+import { emptyAnalysis, type Analysis } from "./analysis";
 
 /* -------------------------------------------------------------------------- */
 /* Auth                                                                       */
@@ -117,33 +117,12 @@ export type ResumeRecord = {
   analysis: Analysis;
 };
 
-const EMPTY_ANALYSIS: Analysis = {
-  id: "",
-  fileName: "",
-  uploadedAt: new Date().toISOString(),
-  atsScore: 0,
-  candidate: {
-    name: "Candidate",
-    title: "Resume",
-    location: "",
-    email: "",
-    yearsExperience: 0,
-  },
-  summary: "Your resume is being analyzed. This takes a few seconds.",
-  scoreBreakdown: [],
-  detectedSkills: [],
-  missingSkills: [],
-  suggestions: [],
-  recommendedRoles: [],
-  keywordTrend: [],
-  skillsRadar: [],
-};
-
 type ResumeState = {
   resumes: ResumeRecord[];
   selectedId: string | null;
   addResume: (file: { name: string; size: number }) => ResumeRecord;
   updateResumeAnalysis: (id: string, analysis: Analysis) => void;
+  hydrate: (resumes: ResumeRecord[]) => void;
   removeResume: (id: string) => void;
   selectResume: (id: string) => void;
   getResume: (id: string) => ResumeRecord | undefined;
@@ -161,26 +140,22 @@ export const useResumeStore = create<ResumeState>()(
           fileName: file.name,
           sizeKb: Math.round(file.size / 1024),
           uploadedAt: new Date().toISOString(),
-          analysis: {
-            ...EMPTY_ANALYSIS,
-            id,
-            fileName: file.name,
-            uploadedAt: new Date().toISOString(),
-          },
+          analysis: emptyAnalysis(id, file.name),
         };
         set((s) => ({ resumes: [record, ...s.resumes], selectedId: id }));
-        // fire an app notification for upload, analysis completes after the worker finishes.
-        useNotificationStore.getState().push({
-          title: "Resume uploaded",
-          detail: `${file.name} is ready for analysis.`,
-          kind: "resume",
-        });
         return record;
       },
       updateResumeAnalysis(id, analysis) {
         set((s) => ({
           resumes: s.resumes.map((r) => (r.id === id ? { ...r, analysis } : r)),
         }));
+      },
+      hydrate(resumes) {
+        const current = get().selectedId;
+        set({
+          resumes,
+          selectedId: resumes.some((r) => r.id === current) ? current : null,
+        });
       },
       removeResume(id) {
         set((s) => ({

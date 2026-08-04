@@ -13,7 +13,14 @@ import { nitro } from "nitro/vite";
  * server-import protection.
  */
 export default defineConfig({
-  server: { host: "::", port: 8080 },
+  server: {
+    host: "::",
+    port: 8080,
+    // API calls go cross-origin to the FastAPI backend in development via
+    // VITE_API_URL (see .env.development). Vite's server.proxy does NOT work
+    // here because TanStack Start's dev handler intercepts /api first — so the
+    // frontend talks to http://127.0.0.1:8000 directly and CORS handles it.
+  },
   css: { transformer: "lightningcss" },
   resolve: {
     alias: { "@": `${process.cwd()}/src` },

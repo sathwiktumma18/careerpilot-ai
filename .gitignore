@@ -27,6 +27,11 @@ venv/
 backend/.env
 backend/data/
 
+# Environment (never commit real keys; keep .env.example as the template)
+.env
+.env.*
+!.env.example
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars

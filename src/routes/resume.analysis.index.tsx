@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useResumeStore } from "@/lib/store";
+import { resumeService } from "@/services/api";
 
 /**
  * Legacy `/resume/analysis` entry point (no id). Redirects to the newest
@@ -12,7 +13,16 @@ import { useResumeStore } from "@/lib/store";
  * infinite redirect loop that freezes the browser.
  */
 export const Route = createFileRoute("/resume/analysis/")({
-  beforeLoad: () => {
+  beforeLoad: async () => {
+    // Hydrate from the backend before deciding where to redirect, so a direct
+    // visit to /resume/analysis works even on a cold store (fresh reload).
+    if (useResumeStore.getState().resumes.length === 0) {
+      try {
+        await resumeService.list();
+      } catch {
+        /* fall through to the empty-state redirect */
+      }
+    }
     const resumes = useResumeStore.getState().resumes;
     if (resumes.length > 0) {
       throw redirect({

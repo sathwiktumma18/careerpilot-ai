@@ -3,11 +3,13 @@ import { motion } from "framer-motion";
 import { FileText, Sparkles, Upload, TrendingUp, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { useEffect } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
 import { EmptyState } from "@/components/common/EmptyState";
 import { useResumeStore } from "@/lib/store";
+import { resumeService } from "@/services/api";
 
 export const Route = createFileRoute("/resume/")({
   head: () => ({ meta: [{ title: "ResumeAI — CareerPilot" }] }),
@@ -18,14 +20,24 @@ function ResumeHome() {
   const resumes = useResumeStore((s) => s.resumes);
   const removeResume = useResumeStore((s) => s.removeResume);
 
+  // Sync from the backend on mount so the list reflects server state (the
+  // backend is the source of truth; the store is a cache).
+  useEffect(() => {
+    resumeService.list().catch((err) => console.warn("Could not sync resumes", err));
+  }, []);
+
   const avg = resumes.length
     ? Math.round(resumes.reduce((a, r) => a + r.analysis.atsScore, 0) / resumes.length)
     : 0;
   const matched = resumes.reduce((a, r) => a + r.analysis.recommendedRoles.length, 0);
 
-  function handleDelete(id: string, name: string) {
-    removeResume(id);
-    toast.success(`Removed ${name}`);
+  async function handleDelete(id: string, name: string) {
+    try {
+      await resumeService.remove(id);
+      toast.success(`Removed ${name}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not remove resume");
+    }
   }
 
   return (

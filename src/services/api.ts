@@ -1,10 +1,9 @@
 /**
  * Frontend service layer for CareerPilot AI.
  *
- * These services front the FastAPI backend (see /backend). While the backend
- * is being built out, they operate on the local Zustand stores so the UI is
- * fully functional end-to-end. Swap the internals to `fetch(BASE_URL + ...)`
- * without changing the public method signatures.
+ * These services call the FastAPI backend (see /backend) and hydrate the local
+ * Zustand stores so the UI reads reactively. The backend is the source of
+ * truth for resumes; stores are a cache.
  */
 import {
   useAuthStore,
@@ -16,35 +15,35 @@ import {
   type User,
   type NotificationItem,
 } from "@/lib/store";
-import { generateAnalysis, type Analysis } from "@/lib/analysis-generator";
-import { generateAnalysisAsync } from "@/lib/analysis-runner";
+import type { Analysis } from "@/lib/analysis";
+import { emptyAnalysis } from "@/lib/analysis";
+import { mapAnalysisFromApi, type ApiAnalysis } from "@/lib/analysis-mapper";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-async function generateAnalysisOffThread(id: string, fileName: string): Promise<Analysis> {
-  if (typeof Worker === "undefined") {
-    return generateAnalysis(id, fileName);
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, init);
+  if (!res.ok) {
+    let detail = `Request failed (${res.status})`;
+    try {
+      const body = (await res.json()) as { detail?: unknown };
+      if (typeof body?.detail === "string") detail = body.detail;
+      else if (body?.detail) detail = JSON.stringify(body.detail);
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new Error(detail);
   }
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
 
-  return await new Promise<Analysis>((resolve, reject) => {
-    const worker = new Worker(new URL("../lib/analysis-worker.ts", import.meta.url), {
-      type: "module",
-    });
-
-    worker.onmessage = (event) => {
-      resolve(event.data.analysis as Analysis);
-      worker.terminate();
-    };
-
-    worker.onerror = (event) => {
-      reject(event.error ?? new Error("Analysis worker failed"));
-      worker.terminate();
-    };
-
-    worker.postMessage({ id, fileName });
-  });
+interface ApiResumeListItem {
+  id: string;
+  file_name: string;
+  status: string;
+  ats_score: number | null;
+  created_at: string;
 }
 
 /* --------------------------------- Auth ----------------------------------- */
@@ -71,48 +70,75 @@ export const resumeService = {
     file: File,
     onProgress?: (pct: number) => void,
   ): Promise<{ id: string; fileName: string }> {
-    // Simulated chunked upload with progress. Backend equivalent:
-    // POST /api/upload  (multipart/form-data)
-    for (let p = 0; p <= 100; p += 8) {
-      onProgress?.(Math.min(p, 100));
-      await sleep(70);
-    }
-    const record = useResumeStore.getState().addResume({ name: file.name, size: file.size });
-    return { id: record.id, fileName: record.fileName };
+    const form = new FormData();
+    form.append("file", file, file.name);
+
+    return await new Promise<{ id: string; fileName: string }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${BASE_URL}/resumes`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText) as { id: string; file_name: string };
+            resolve({ id: data.id, fileName: data.file_name });
+          } catch {
+            reject(new Error("Invalid upload response"));
+          }
+        } else {
+          reject(new Error(`Upload failed (${xhr.status})`));
+        }
+      };
+      xhr.onerror = () => reject(new Error("Upload failed"));
+      xhr.send(form);
+    });
   },
 
   async analyze(id: string): Promise<ResumeRecord> {
-    // Simulate a backend analysis pass and keep the UI thread responsive.
-    // The actual mock work is offloaded to a Web Worker when available.
-    const record = useResumeStore.getState().getResume(id);
-    if (!record) throw new Error("Resume not found");
-
-    await sleep(900);
-    const analysis = await generateAnalysisOffThread(id, record.fileName);
+    const raw = await request<ApiAnalysis>(`/resumes/${id}/analyze`, { method: "POST" });
+    const analysis = mapAnalysisFromApi(raw);
     useResumeStore.getState().updateResumeAnalysis(id, analysis);
     useNotificationStore.getState().push({
       title: "Resume analysis complete",
-      detail: `${record.fileName} — ATS ${analysis.atsScore}`,
+      detail: `${analysis.fileName} — ATS ${analysis.atsScore}`,
       kind: "resume",
     });
-
-    const updated = useResumeStore.getState().getResume(id);
-    if (!updated) throw new Error("Resume not found after analysis");
-    return updated;
+    const record = useResumeStore.getState().getResume(id);
+    if (!record) throw new Error("Resume not found after analysis");
+    return record;
   },
 
   async list(): Promise<ResumeRecord[]> {
-    await sleep(120);
-    return useResumeStore.getState().resumes;
+    const items = await request<ApiResumeListItem[]>("/resumes");
+    const store = useResumeStore.getState();
+    const records: ResumeRecord[] = items.map((item) => {
+      const existing = store.getResume(item.id);
+      return {
+        id: item.id,
+        fileName: item.file_name,
+        sizeKb: 0,
+        uploadedAt: item.created_at,
+        analysis: existing?.analysis ?? emptyAnalysis(item.id, item.file_name),
+      };
+    });
+    store.hydrate(records);
+    return records;
   },
 
   async get(id: string): Promise<ResumeRecord | null> {
-    await sleep(120);
+    const detail = await request<ApiResumeListItem & { analysis: ApiAnalysis | null }>(
+      `/resumes/${id}`,
+    );
+    if (!detail.analysis) return null;
+    const analysis = mapAnalysisFromApi(detail.analysis);
+    useResumeStore.getState().updateResumeAnalysis(id, analysis);
     return useResumeStore.getState().getResume(id) ?? null;
   },
 
   async remove(id: string): Promise<void> {
-    await sleep(120);
+    await request<void>(`/resumes/${id}`, { method: "DELETE" });
     useResumeStore.getState().removeResume(id);
   },
 };
@@ -121,11 +147,9 @@ export const resumeService = {
 
 export const profileService = {
   async get(): Promise<User | null> {
-    await sleep(80);
     return useAuthStore.getState().user;
   },
   async update(patch: Partial<User>): Promise<User | null> {
-    await sleep(180);
     useAuthStore.getState().updateProfile(patch);
     return useAuthStore.getState().user;
   },
@@ -135,11 +159,9 @@ export const profileService = {
 
 export const settingsService = {
   async get(): Promise<Settings> {
-    await sleep(80);
     return useSettingsStore.getState().settings;
   },
   async update(patch: Partial<Settings>): Promise<Settings> {
-    await sleep(220);
     useSettingsStore.getState().save(patch);
     return useSettingsStore.getState().settings;
   },
@@ -149,7 +171,6 @@ export const settingsService = {
 
 export const notificationService = {
   async list(): Promise<NotificationItem[]> {
-    await sleep(80);
     return useNotificationStore.getState().items;
   },
   async markAllRead(): Promise<void> {
@@ -164,7 +185,6 @@ export const notificationService = {
 
 export const dashboardService = {
   async get() {
-    await sleep(120);
     const resumes = useResumeStore.getState().resumes;
     const activity = useNotificationStore.getState().items.slice(0, 6);
     const avgAts = resumes.length
