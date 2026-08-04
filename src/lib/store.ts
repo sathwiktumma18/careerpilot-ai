@@ -230,7 +230,7 @@ export const useSettingsStore = create<SettingsState>()(
 /* Notifications                                                              */
 /* -------------------------------------------------------------------------- */
 
-export type NotificationKind = "resume" | "match" | "interview" | "system";
+export type NotificationKind = "resume" | "match" | "interview" | "roadmap" | "system";
 
 export type NotificationItem = {
   id: string;

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import app.models  # noqa: F401  # register ORM models before create_all
 from app.config.settings import settings
 from app.database.session import Base, engine
-from app.routes import dashboard, interview, job_match, profile, resume
+from app.routes import dashboard, interview, job_match, profile, resume, roadmap
 
 
 @asynccontextmanager
@@ -37,6 +37,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router)
     app.include_router(job_match.router)
     app.include_router(interview.router)
+    app.include_router(roadmap.router)
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:

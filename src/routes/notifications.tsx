@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bell, Sparkles, Briefcase, MessagesSquare } from "lucide-react";
+import { Bell, Sparkles, Briefcase, MessagesSquare, Map } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -16,6 +16,7 @@ const iconFor: Record<NotificationKind, typeof Bell> = {
   resume: Sparkles,
   match: Briefcase,
   interview: MessagesSquare,
+  roadmap: Map,
   system: Bell,
 };
 

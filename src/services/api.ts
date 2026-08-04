@@ -32,6 +32,8 @@ import {
   type ApiInterviewSession,
 } from "@/lib/interview-mapper";
 import type { Difficulty, InterviewFeedback, InterviewSession } from "@/lib/interview";
+import { mapRoadmapFromApi, type ApiRoadmapPlan } from "@/lib/roadmap-mapper";
+import type { RoadmapPlan } from "@/lib/roadmap";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -281,6 +283,35 @@ export const interviewService = {
   },
 };
 
+/* ------------------------------ Career Roadmap ----------------------------- */
+
+export interface RoadmapParams {
+  resumeId?: string; // optional — a plan works without one
+  targetRole?: string;
+  horizon?: number; // weeks
+}
+
+export const roadmapService = {
+  async generate(params: RoadmapParams): Promise<RoadmapPlan> {
+    const raw = await request<ApiRoadmapPlan>("/roadmap", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resume_id: params.resumeId ?? null,
+        target_role: params.targetRole ?? "Software Engineer",
+        horizon: params.horizon ?? 12,
+      }),
+    });
+    const plan = mapRoadmapFromApi(raw);
+    useNotificationStore.getState().push({
+      title: "Career roadmap ready",
+      detail: `${plan.horizon}-week plan to reach ${plan.targetRole}`,
+      kind: "roadmap",
+    });
+    return plan;
+  },
+};
+
 /* -------------------------------- Job Match -------------------------------- */
 
 export interface JobMatchParams {
@@ -328,4 +359,5 @@ export const api = {
   dashboardService,
   jobMatchService,
   interviewService,
+  roadmapService,
 };
