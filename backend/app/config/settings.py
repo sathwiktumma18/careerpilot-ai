@@ -26,6 +26,12 @@ class Settings(BaseSettings):
 
     environment: str = "development"
 
+    # --- Auth (JWT) ---
+    # Override in prod — a leaked/default secret lets anyone forge tokens.
+    jwt_secret: str = "dev-only-change-me"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 24  # 24h (long enough for a demo session)
+
     # --- AI providers (free tier) ---
     # Gemini is the primary LLM. Leave GEMINI_API_KEY empty to fall through to
     # Ollama (local), then to the deterministic no-key analyzer.

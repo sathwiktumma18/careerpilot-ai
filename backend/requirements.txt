@@ -5,6 +5,9 @@ pydantic-settings==2.6.1
 sqlalchemy==2.0.36
 python-multipart==0.0.12
 email-validator==2.2.0
+# Auth: password hashing + stateless JWTs
+bcrypt==4.2.0
+PyJWT==2.9.0
 # PDF text extraction
 pymupdf>=1.24.0
 # Async HTTP for AI providers (Gemini/Ollama) + TestClient
