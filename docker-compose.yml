@@ -1,0 +1,48 @@
+# CareerPilot AI — self-contained local stack.
+#
+#   docker compose up --build
+#
+#   Frontend : http://localhost:5173
+#   Backend  : http://localhost:8000  (API under /api, /health for healthchecks)
+#
+# The backend reads its secrets/keys from backend/.env (git-ignored) — the same
+# file used for local dev. The frontend is built with VITE_API_URL pointing at
+# the host-accessible backend, so the browser talks to it cross-origin exactly
+# like local development (CORS is already configured on the backend).
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - backend/.env
+    environment:
+      # SQLite lives in /app/backend/data, which is the named volume below.
+      DATABASE_URL: sqlite:////app/backend/data/careerpilot.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - careerpilot-data:/app/backend/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_API_URL: http://localhost:8000/api
+    ports:
+      - "5173:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  careerpilot-data:

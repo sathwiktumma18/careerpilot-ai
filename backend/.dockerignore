@@ -1,0 +1,10 @@
+# Never ship local state, secrets, or test tooling into the image.
+venv/
+__pycache__/
+*.py[cod]
+data/
+.env
+.env.*
+tests/
+.pytest_cache/
+*.log

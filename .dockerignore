@@ -1,0 +1,16 @@
+# Frontend image context = repo root; keep only what the build needs.
+node_modules
+.output
+.tanstack
+.wrangler
+.git
+.gitignore
+backend
+data
+*.log
+.env
+.env.*
+!.env.example
+test.pdf
+dummy.pdf
+*.db
