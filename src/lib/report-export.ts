@@ -152,7 +152,9 @@ export async function exportAnalysisReport(a: Analysis): Promise<void> {
   }
 
   const bytes = await doc.save();
-  const blob = new Blob([bytes], { type: "application/pdf" });
+  // Copy into a fresh Uint8Array<ArrayBuffer>: jsPDF's newer types yield an
+  // ArrayBufferLike that TS rejects as a BlobPart.
+  const blob = new Blob([Uint8Array.from(bytes)], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;

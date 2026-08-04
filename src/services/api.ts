@@ -18,6 +18,13 @@ import {
 import type { Analysis } from "@/lib/analysis";
 import { emptyAnalysis } from "@/lib/analysis";
 import { mapAnalysisFromApi, type ApiAnalysis } from "@/lib/analysis-mapper";
+import {
+  mapJobLiteFromApi,
+  mapJobMatchFromApi,
+  type ApiJobLite,
+  type ApiJobMatchResponse,
+} from "@/lib/job-match-mapper";
+import type { JobLite, JobMatchResponse } from "@/lib/job-match";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -223,6 +230,44 @@ export const dashboardService = {
   },
 };
 
+/* -------------------------------- Job Match -------------------------------- */
+
+export interface JobMatchParams {
+  resumeId: string;
+  jobDescription?: string;
+  remoteOnly?: boolean;
+  locations?: string[];
+  limit?: number;
+}
+
+export const jobMatchService = {
+  async match(params: JobMatchParams): Promise<JobMatchResponse> {
+    const raw = await request<ApiJobMatchResponse>("/match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resume_id: params.resumeId,
+        job_description: params.jobDescription ?? "",
+        remote_only: params.remoteOnly ?? false,
+        locations: params.locations ?? [],
+        limit: params.limit ?? 10,
+      }),
+    });
+    const result = mapJobMatchFromApi(raw);
+    useNotificationStore.getState().push({
+      title: "Job matches refreshed",
+      detail: `${result.results.length} roles ranked for ${result.resumeTitle}`,
+      kind: "match",
+    });
+    return result;
+  },
+
+  async listJobs(): Promise<JobLite[]> {
+    const raw = await request<ApiJobLite[]>("/jobs");
+    return (raw ?? []).map(mapJobLiteFromApi);
+  },
+};
+
 export const api = {
   authService,
   resumeService,
@@ -230,4 +275,5 @@ export const api = {
   settingsService,
   notificationService,
   dashboardService,
+  jobMatchService,
 };
