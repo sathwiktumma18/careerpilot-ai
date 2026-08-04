@@ -175,8 +175,10 @@ async def analyze_resume(resume_id: str, file_name: str, text: str) -> AnalysisR
     try:
         raw = await generate_text(prompt, json_mode=True, temperature=0.2)
         data = _extract_json(raw)
-        data.setdefault("id", resume_id)
-        data.setdefault("file_name", file_name)
+        # id/file_name are server-owned: never trust the model's copy (it may
+        # invent an id like "res_..." instead of the real resume id).
+        data["id"] = resume_id
+        data["file_name"] = file_name
         return AnalysisResponse.model_validate(data)
     except (ProviderError, json.JSONDecodeError, ValueError) as exc:
         logger.warning("LLM analysis failed (%s); using fallback analyzer", exc)

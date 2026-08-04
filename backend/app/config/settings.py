@@ -29,8 +29,10 @@ class Settings(BaseSettings):
     # --- AI providers (free tier) ---
     # Gemini is the primary LLM. Leave GEMINI_API_KEY empty to fall through to
     # Ollama (local), then to the deterministic no-key analyzer.
+    # gemini-flash-latest is an alias that tracks Google's newest flash model,
+    # so it won't be retired out from under a free-tier account.
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-flash-latest"
     gemini_embedding_model: str = "gemini-embedding-001"
 
     # Local Ollama fallback.
