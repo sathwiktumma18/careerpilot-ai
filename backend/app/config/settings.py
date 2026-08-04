@@ -1,15 +1,28 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Anchor filesystem-dependent config to the backend package directory (not the
+# process CWD), so the app behaves identically no matter where uvicorn is
+# launched from. backend/ is three levels up from this file.
+BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+DATA_DIR = BACKEND_DIR / "data"
 
 
 class Settings(BaseSettings):
     """Environment-driven config. See backend/.env.example."""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(BACKEND_DIR / ".env"), extra="ignore")
 
     # Local dev uses SQLite (zero-config). Override with a Postgres URL in prod,
     # e.g. postgresql+psycopg://user:pass@host:5432/careerpilot.
-    database_url: str = "sqlite:///./data/careerpilot.db"
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000", "http://localhost:8080"]
+    database_url: str = f"sqlite:///{(DATA_DIR / 'careerpilot.db').as_posix()}"
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://localhost:8080",
+    ]
 
     environment: str = "development"
 
@@ -25,7 +38,15 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.2"
 
     # Where uploaded PDFs and the analysis output live (git-ignored).
-    upload_dir: str = "./data/uploads"
+    upload_dir: str = str(DATA_DIR / "uploads")
 
 
 settings = Settings()
+
+# Make sure the on-disk data dirs exist so SQLite can open the DB even on a
+# cold start from an arbitrary CWD.
+try:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
+except OSError:
+    pass  # Postgres setups don't need local dirs; errors surface at startup.
