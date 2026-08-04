@@ -33,7 +33,9 @@ class UploadRejectedError(Exception):
 
 
 class ResumeService:
-    def register_upload(self, db: Session, *, file_name: str, file_bytes: bytes) -> Resume:
+    def register_upload(
+        self, db: Session, *, file_name: str, file_bytes: bytes, user_id: str
+    ) -> Resume:
         if not file_bytes:
             raise UploadRejectedError("Empty file")
         if len(file_bytes) > MAX_UPLOAD_BYTES:
@@ -46,6 +48,7 @@ class ResumeService:
 
         resume = Resume(
             id=resume_id,
+            user_id=user_id,
             file_name=file_name,
             file_path=str(path),
             status="uploaded",
@@ -55,20 +58,31 @@ class ResumeService:
         db.refresh(resume)
         return resume
 
-    def get(self, db: Session, resume_id: str) -> Resume:
-        resume = db.get(Resume, resume_id)
+    # --- Ownership-scoped access. Every lookup is filtered by user_id, so a
+    # caller can only ever see their own resumes — another user's id 404s
+    # exactly like a nonexistent one (no existence disclosure).
+
+    def get_owned_or_none(self, db: Session, resume_id: str, user_id: str) -> Resume | None:
+        return db.scalar(
+            select(Resume).where(Resume.id == resume_id, Resume.user_id == user_id)
+        )
+
+    def get_owned(self, db: Session, resume_id: str, user_id: str) -> Resume:
+        resume = self.get_owned_or_none(db, resume_id, user_id)
         if resume is None:
             raise ResumeNotFoundError(resume_id)
         return resume
 
-    def list(self, db: Session) -> list[Resume]:
-        stmt = select(Resume).order_by(Resume.created_at.desc())
+    def list_owned(self, db: Session, user_id: str) -> list[Resume]:
+        stmt = (
+            select(Resume)
+            .where(Resume.user_id == user_id)
+            .order_by(Resume.created_at.desc())
+        )
         return list(db.scalars(stmt))
 
-    def delete(self, db: Session, resume_id: str) -> None:
-        resume = db.get(Resume, resume_id)
-        if resume is None:
-            raise ResumeNotFoundError(resume_id)
+    def delete_owned(self, db: Session, resume_id: str, user_id: str) -> None:
+        resume = self.get_owned(db, resume_id, user_id)
         # Best-effort cleanup of the stored PDF; the DB row is the source of truth.
         try:
             Path(resume.file_path).unlink(missing_ok=True)
@@ -77,8 +91,8 @@ class ResumeService:
         db.delete(resume)
         db.commit()
 
-    async def analyze(self, db: Session, resume_id: str) -> AnalysisResponse:
-        resume = self.get(db, resume_id)
+    async def analyze(self, db: Session, resume_id: str, user_id: str) -> AnalysisResponse:
+        resume = self.get_owned(db, resume_id, user_id)
 
         # Re-analysis is cheap to re-run and keeps output fresh; only reuse the
         # stored result if a previous analysis exists AND text extraction worked.

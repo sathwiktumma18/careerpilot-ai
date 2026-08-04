@@ -22,11 +22,10 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.config.settings import settings
-from app.models.resume import Resume
 from app.services import ai_provider
 from app.services.job_corpus import JOBS, Job
 from app.services.pdf_parser import PdfParseError, extract_text
-from app.services.resume_service import ResumeNotFoundError
+from app.services.resume_service import ResumeNotFoundError, resume_service
 from app.services.skill_catalog import SKILLS, alias_pattern, normalize_name
 
 logger = logging.getLogger(__name__)
@@ -225,14 +224,14 @@ async def match_resume(
     db: Session,
     resume_id: str,
     *,
+    user_id: str,
     job_description: str = "",
     remote_only: bool = False,
     locations: list[str] | None = None,
     limit: int = 10,
 ) -> dict:
-    resume = db.get(Resume, resume_id)
-    if resume is None:
-        raise ResumeNotFoundError(resume_id)
+    # Only the resume's owner may match against it — someone else's id 404s.
+    resume = resume_service.get_owned(db, resume_id, user_id)
     if not resume.analysis:
         raise JobMatchError("Analyze this resume first — matching needs its skill profile.")
 

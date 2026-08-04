@@ -22,26 +22,29 @@ def client():
 
 
 @pytest.fixture()
-def analyzed_resume(client):
-    """Upload + analyze a real resume (deterministic fallback) and return its id."""
+def analyzed_resume(client, auth):
+    """Upload + analyze a real resume for a fresh owner; return {id, headers}."""
+    user = auth()
     data = client.post(
         "/api/resumes",
         files={"file": ("jane_doe.pdf", resume_pdf_bytes(), "application/pdf")},
+        headers=user["headers"],
     ).json()
-    resp = client.post(f"/api/resumes/{data['id']}/analyze")
+    resp = client.post(f"/api/resumes/{data['id']}/analyze", headers=user["headers"])
     assert resp.status_code == 200, resp.text
-    return data["id"]
+    return {"id": data["id"], "headers": user["headers"]}
 
 
 def _run(coro):
     return asyncio.run(coro)
 
 
-def test_start_session_endpoint_generic(client):
+def test_start_session_endpoint_generic(client, auth):
     """No resume → a valid session from the generic template bank."""
     resp = client.post(
         "/api/interview/sessions",
         json={"role": "Frontend Engineer", "difficulty": "mid", "count": 4},
+        headers=auth()["headers"],
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -61,7 +64,8 @@ def test_start_session_uses_resume_skills(client, analyzed_resume):
     """An analyzed resume feeds the question set; unknown ids still work."""
     resp = client.post(
         "/api/interview/sessions",
-        json={"resume_id": analyzed_resume, "count": 3},
+        json={"resume_id": analyzed_resume["id"], "count": 3},
+        headers=analyzed_resume["headers"],
     )
     assert resp.status_code == 200, resp.text
     assert len(resp.json()["questions"]) == 3
@@ -70,15 +74,37 @@ def test_start_session_uses_resume_skills(client, analyzed_resume):
     resp = client.post(
         "/api/interview/sessions",
         json={"resume_id": "does-not-exist", "count": 3},
+        headers=analyzed_resume["headers"],
     )
     assert resp.status_code == 200
     assert len(resp.json()["questions"]) == 3
 
 
-def test_count_validated(client):
-    assert client.post("/api/interview/sessions", json={"count": 2}).status_code == 422
-    assert client.post("/api/interview/sessions", json={"count": 9}).status_code == 422
-    assert client.post("/api/interview/sessions", json={"difficulty": "godlike"}).status_code == 422
+def test_other_users_resume_does_not_leak(client, auth, analyzed_resume):
+    """Another user's resume id behaves like 'no resume' — no skill leak, no 404."""
+    other = auth()
+    resp = client.post(
+        "/api/interview/sessions",
+        json={"resume_id": analyzed_resume["id"], "count": 3},
+        headers=other["headers"],
+    )
+    assert resp.status_code == 200
+    assert len(resp.json()["questions"]) == 3
+
+
+def test_count_validated(client, auth):
+    headers = auth()["headers"]
+    assert client.post("/api/interview/sessions", json={"count": 2}, headers=headers).status_code == 422
+    assert client.post("/api/interview/sessions", json={"count": 9}, headers=headers).status_code == 422
+    assert client.post("/api/interview/sessions", json={"difficulty": "godlike"}, headers=headers).status_code == 422
+
+
+def test_interview_endpoints_require_auth(client):
+    assert client.post("/api/interview/sessions", json={"count": 3}).status_code == 401
+    assert client.post(
+        "/api/interview/feedback",
+        json={"session_id": "x", "question_id": "q1", "answer": "a"},
+    ).status_code == 401
 
 
 def test_difficulty_scaling():
@@ -133,9 +159,10 @@ def test_score_unknown_session_uses_fallback_question():
     assert feedback.model_answer
 
 
-def test_feedback_endpoint_route(client):
+def test_feedback_endpoint_route(client, auth):
+    headers = auth()["headers"]
     session = client.post(
-        "/api/interview/sessions", json={"count": 3, "difficulty": "mid"}
+        "/api/interview/sessions", json={"count": 3, "difficulty": "mid"}, headers=headers
     ).json()
     resp = client.post(
         "/api/interview/feedback",
@@ -144,6 +171,7 @@ def test_feedback_endpoint_route(client):
             "question_id": "q1",
             "answer": "I shipped a feature that lifted signups by 8% and hit all the hints.",
         },
+        headers=headers,
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -152,9 +180,10 @@ def test_feedback_endpoint_route(client):
     assert body["strengths"] and body["improvements"] and body["model_answer"]
 
 
-def test_feedback_requires_answer(client):
+def test_feedback_requires_answer(client, auth):
     resp = client.post(
         "/api/interview/feedback",
         json={"session_id": "x", "question_id": "q1", "answer": ""},
+        headers=auth()["headers"],
     )
     assert resp.status_code == 422

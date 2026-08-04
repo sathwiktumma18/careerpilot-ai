@@ -20,15 +20,17 @@ def client():
 
 
 @pytest.fixture()
-def analyzed_resume(client):
-    """Upload + analyze a real resume (deterministic fallback) and return its id."""
+def analyzed_resume(client, auth):
+    """Upload + analyze a real resume for a fresh owner; return {id, headers, user_id}."""
+    user = auth()
     data = client.post(
         "/api/resumes",
         files={"file": ("jane_doe.pdf", resume_pdf_bytes(), "application/pdf")},
+        headers=user["headers"],
     ).json()
-    resp = client.post(f"/api/resumes/{data['id']}/analyze")
+    resp = client.post(f"/api/resumes/{data['id']}/analyze", headers=user["headers"])
     assert resp.status_code == 200, resp.text
-    return data["id"]
+    return {"id": data["id"], "headers": user["headers"], "user_id": user["user_id"]}
 
 
 def _run(coro):
@@ -39,8 +41,12 @@ def _milestones(plan):
     return [m for phase in plan.phases for m in phase.milestones]
 
 
-def test_roadmap_endpoint_generic(client):
-    resp = client.post("/api/roadmap", json={"target_role": "Frontend Engineer", "horizon": 8})
+def test_roadmap_endpoint_generic(client, auth):
+    resp = client.post(
+        "/api/roadmap",
+        json={"target_role": "Frontend Engineer", "horizon": 8},
+        headers=auth()["headers"],
+    )
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["generated_by"] == "template"
@@ -60,7 +66,12 @@ def test_roadmap_endpoint_generic(client):
 def test_roadmap_with_analyzed_resume(client, analyzed_resume):
     resp = client.post(
         "/api/roadmap",
-        json={"resume_id": analyzed_resume, "target_role": "Full Stack Engineer", "horizon": 12},
+        json={
+            "resume_id": analyzed_resume["id"],
+            "target_role": "Full Stack Engineer",
+            "horizon": 12,
+        },
+        headers=analyzed_resume["headers"],
     )
     assert resp.status_code == 200, resp.text
     assert len(_milestones_from_body(resp.json())) == 12
@@ -74,10 +85,14 @@ def test_roadmap_detects_role_gaps(client, analyzed_resume):
     """A frontend resume heading to DevOps must target devops skills."""
     resp = client.post(
         "/api/roadmap",
-        json={"resume_id": analyzed_resume, "target_role": "DevOps Engineer", "horizon": 12},
+        json={
+            "resume_id": analyzed_resume["id"],
+            "target_role": "DevOps Engineer",
+            "horizon": 12,
+        },
+        headers=analyzed_resume["headers"],
     )
     assert resp.status_code == 200, resp.text
-    """A frontend resume heading to DevOps must target devops skills."""
     target = resp.json()["target_skills"]
     assert "Kubernetes" in target
     # Everything proposed belongs to the devops track (nothing already known).
@@ -85,13 +100,36 @@ def test_roadmap_detects_role_gaps(client, analyzed_resume):
     assert set(target) <= devops_track
 
 
-def test_roadmap_validates_horizon(client):
-    assert client.post("/api/roadmap", json={"horizon": 3}).status_code == 422
-    assert client.post("/api/roadmap", json={"horizon": 25}).status_code == 422
+def test_roadmap_other_users_resume_does_not_leak(client, auth, analyzed_resume):
+    """Another user's resume id behaves like 'no resume' — no skill leak, no 404."""
+    other = auth()
+    resp = client.post(
+        "/api/roadmap",
+        json={"resume_id": analyzed_resume["id"], "target_role": "DevOps Engineer"},
+        headers=other["headers"],
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    # The generic (no-resume) devops plan, not Jane's skills.
+    assert "Kubernetes" in body["target_skills"]
 
 
-def test_roadmap_unknown_resume_ok(client):
-    resp = client.post("/api/roadmap", json={"resume_id": "does-not-exist", "horizon": 6})
+def test_roadmap_validates_horizon(client, auth):
+    headers = auth()["headers"]
+    assert client.post("/api/roadmap", json={"horizon": 3}, headers=headers).status_code == 422
+    assert client.post("/api/roadmap", json={"horizon": 25}, headers=headers).status_code == 422
+
+
+def test_roadmap_endpoint_requires_auth(client):
+    assert client.post("/api/roadmap", json={"horizon": 6}).status_code == 401
+
+
+def test_roadmap_unknown_resume_ok(client, analyzed_resume):
+    resp = client.post(
+        "/api/roadmap",
+        json={"resume_id": "does-not-exist", "horizon": 6},
+        headers=analyzed_resume["headers"],
+    )
     assert resp.status_code == 200
     assert resp.json()["generated_by"] == "template"
 
@@ -101,8 +139,20 @@ def test_roadmap_fallback_is_deterministic(analyzed_resume):
 
     db = SessionLocal()
     try:
-        a = _run(generate_roadmap(db, resume_id=analyzed_resume, target_role="Backend Engineer", horizon=12))
-        b = _run(generate_roadmap(db, resume_id=analyzed_resume, target_role="Backend Engineer", horizon=12))
+        a = _run(generate_roadmap(
+            db,
+            resume_id=analyzed_resume["id"],
+            user_id=analyzed_resume["user_id"],
+            target_role="Backend Engineer",
+            horizon=12,
+        ))
+        b = _run(generate_roadmap(
+            db,
+            resume_id=analyzed_resume["id"],
+            user_id=analyzed_resume["user_id"],
+            target_role="Backend Engineer",
+            horizon=12,
+        ))
     finally:
         db.close()
     titles_a = [m.title for m in _milestones(a)]

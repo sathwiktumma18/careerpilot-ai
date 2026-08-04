@@ -12,9 +12,9 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.config.settings import settings
-from app.models.resume import Resume
 from app.schemas.roadmap import RoadmapMilestone, RoadmapPhase, RoadmapResponse
 from app.services import ai_provider
+from app.services.resume_service import resume_service
 from app.services.skill_catalog import normalize_name
 
 logger = logging.getLogger(__name__)
@@ -214,10 +214,13 @@ async def generate_roadmap(
     resume_id: str | None = None,
     target_role: str = "Software Engineer",
     horizon: int = 12,
+    user_id: str | None = None,
 ) -> RoadmapResponse:
     resume_skills: list[str] = []
-    if resume_id:
-        resume = db.get(Resume, resume_id)
+    # Only the owner's resume may shape the plan — someone else's id is treated
+    # as "no resume" so it can't leak skill data.
+    if resume_id and user_id:
+        resume = resume_service.get_owned_or_none(db, resume_id, user_id)
         if resume and resume.analysis:
             resume_skills = [s["name"] for s in resume.analysis.get("detected_skills", [])]
 

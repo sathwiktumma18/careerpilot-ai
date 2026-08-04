@@ -15,15 +15,17 @@ def client():
 
 
 @pytest.fixture()
-def analyzed_resume(client):
-    """Upload + analyze a real resume (deterministic fallback) and return its id."""
+def analyzed_resume(client, auth):
+    """Upload + analyze a real resume for a fresh owner; return {id, headers}."""
+    user = auth()
     data = client.post(
         "/api/resumes",
         files={"file": ("jane_doe.pdf", resume_pdf_bytes(), "application/pdf")},
+        headers=user["headers"],
     ).json()
-    resp = client.post(f"/api/resumes/{data['id']}/analyze")
+    resp = client.post(f"/api/resumes/{data['id']}/analyze", headers=user["headers"])
     assert resp.status_code == 200, resp.text
-    return data["id"]
+    return {"id": data["id"], "headers": user["headers"]}
 
 
 def test_match_normalizes_llm_skill_names(client, analyzed_resume):
@@ -33,7 +35,7 @@ def test_match_normalizes_llm_skill_names(client, analyzed_resume):
     from app.models.resume import Resume
 
     db = SessionLocal()
-    resume = db.get(Resume, analyzed_resume)
+    resume = db.get(Resume, analyzed_resume["id"])
     # Assign a NEW dict — in-place mutation isn't tracked by SQLAlchemy's JSON column.
     resume.analysis = {
         **resume.analysis,
@@ -45,7 +47,11 @@ def test_match_normalizes_llm_skill_names(client, analyzed_resume):
     db.commit()
     db.close()
 
-    resp = client.post("/api/match", json={"resume_id": analyzed_resume, "limit": 30})
+    resp = client.post(
+        "/api/match",
+        json={"resume_id": analyzed_resume["id"], "limit": 30},
+        headers=analyzed_resume["headers"],
+    )
     assert resp.status_code == 200, resp.text
     body = resp.json()
     # Raw names are shown to the user…
@@ -66,29 +72,34 @@ def test_skills_in_text_detects_catalog_names():
     assert "SQL" in found  # "Postgres" is an alias of SQL
 
 
-def test_match_requires_analyzed_resume(client):
+def test_match_requires_analyzed_resume(client, auth):
+    headers = auth()["headers"]
     data = client.post(
         "/api/resumes",
         files={"file": ("jane_doe.pdf", resume_pdf_bytes(), "application/pdf")},
+        headers=headers,
     ).json()
-    resp = client.post("/api/match", json={"resume_id": data["id"]})
+    resp = client.post("/api/match", json={"resume_id": data["id"]}, headers=headers)
     assert resp.status_code == 422
     assert "Analyze this resume first" in resp.json()["detail"]
 
 
-def test_match_unknown_resume_404(client):
-    resp = client.post("/api/match", json={"resume_id": "does-not-exist"})
+def test_match_unknown_resume_404(client, auth):
+    resp = client.post(
+        "/api/match", json={"resume_id": "does-not-exist"}, headers=auth()["headers"]
+    )
     assert resp.status_code == 404
 
 
 def test_match_returns_ranked_results(client, analyzed_resume):
     resp = client.post(
         "/api/match",
-        json={"resume_id": analyzed_resume, "limit": 5},
+        json={"resume_id": analyzed_resume["id"], "limit": 5},
+        headers=analyzed_resume["headers"],
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["resume_id"] == analyzed_resume
+    assert body["resume_id"] == analyzed_resume["id"]
     assert body["method"] == "tfidf"  # tests force the no-key path
     assert body["detected_skills"]  # Jane Doe's skills
     assert body["results"]
@@ -111,7 +122,8 @@ def test_match_supports_pasted_job_description(client, analyzed_resume):
     )
     resp = client.post(
         "/api/match",
-        json={"resume_id": analyzed_resume, "job_description": jd, "limit": 3},
+        json={"resume_id": analyzed_resume["id"], "job_description": jd, "limit": 3},
+        headers=analyzed_resume["headers"],
     )
     assert resp.status_code == 200, resp.text
     results = resp.json()["results"]
@@ -125,30 +137,43 @@ def test_match_supports_pasted_job_description(client, analyzed_resume):
 def test_match_remote_filter(client, analyzed_resume):
     resp = client.post(
         "/api/match",
-        json={"resume_id": analyzed_resume, "remote_only": True, "limit": 30},
+        json={"resume_id": analyzed_resume["id"], "remote_only": True, "limit": 30},
+        headers=analyzed_resume["headers"],
     )
     assert resp.status_code == 200
     assert all(r["remote"] for r in resp.json()["results"])
 
 
-def test_jobs_browse_endpoint(client):
-    resp = client.get("/api/jobs")
+def test_jobs_browse_endpoint(client, auth):
+    resp = client.get("/api/jobs", headers=auth()["headers"])
     assert resp.status_code == 200
     jobs = resp.json()
     assert len(jobs) >= 15
     assert all({"job_id", "title", "company", "category", "skills_count"} <= set(j) for j in jobs)
 
 
-def test_service_unknown_resume_raises_not_found(client, analyzed_resume):
+def test_match_endpoints_require_auth(client):
+    assert client.post("/api/match", json={"resume_id": "x"}).status_code == 401
+    assert client.get("/api/jobs").status_code == 401
+
+
+def test_match_cannot_use_another_users_resume(client, auth, analyzed_resume):
+    """A different user matching against this resume id gets 404, not its skills."""
+    other = auth()
+    resp = client.post(
+        "/api/match", json={"resume_id": analyzed_resume["id"]}, headers=other["headers"]
+    )
+    assert resp.status_code == 404
+
+
+def test_service_unknown_resume_raises_not_found(auth):
     """The service guard runs before any matching logic."""
-    with pytest.raises(ResumeNotFoundError):
-        import asyncio
-        from app.database.session import SessionLocal
+    import asyncio
+    from app.database.session import SessionLocal
 
-        db = SessionLocal()
-        try:
-            from app.services.job_match_service import match_resume
-
-            asyncio.run(match_resume(db, "missing"))
-        finally:
-            db.close()
+    db = SessionLocal()
+    try:
+        with pytest.raises(ResumeNotFoundError):
+            asyncio.run(match_resume(db, "missing", user_id=auth()["user_id"]))
+    finally:
+        db.close()

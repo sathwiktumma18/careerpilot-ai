@@ -16,7 +16,6 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.config.settings import settings
-from app.models.resume import Resume
 from app.schemas.interview import (
     Difficulty,
     InterviewFeedbackResponse,
@@ -24,6 +23,7 @@ from app.schemas.interview import (
     InterviewStartResponse,
 )
 from app.services import ai_provider
+from app.services.resume_service import resume_service
 
 logger = logging.getLogger(__name__)
 
@@ -337,10 +337,13 @@ async def start_session(
     difficulty: Difficulty,
     count: int,
     resume_id: str | None = None,
+    user_id: str | None = None,
 ) -> InterviewStartResponse:
     skills: list[str] = []
-    if resume_id:
-        resume = db.get(Resume, resume_id)
+    # Only the owner's resume may feed the questions — someone else's id is
+    # treated as "no resume" (interviews work without one) so it can't leak.
+    if resume_id and user_id:
+        resume = resume_service.get_owned_or_none(db, resume_id, user_id)
         if resume and resume.analysis:
             skills = [s["name"] for s in resume.analysis.get("detected_skills", [])]
 

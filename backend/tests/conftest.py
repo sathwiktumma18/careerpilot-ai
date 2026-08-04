@@ -5,6 +5,7 @@ and isolates the SQLite DB + uploads from the dev data directory.
 """
 import os
 import sys
+import uuid
 from pathlib import Path
 
 # Point the DB at a test file BEFORE the app package is imported (engine is
@@ -20,7 +21,9 @@ os.environ["GEMINI_API_KEY"] = ""
 sys.path.insert(0, str(BACKEND_DIR))
 
 import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
+from app.main import create_app  # noqa: E402
 from app.services import ai_provider  # noqa: E402
 from app.utils.files import ensure_dir  # noqa: E402
 
@@ -43,3 +46,33 @@ def _temp_uploads(tmp_path, monkeypatch):
     monkeypatch.setattr(ai_provider.settings, "upload_dir", str(tmp_path / "uploads"))
     ensure_dir(Path(ai_provider.settings.upload_dir))
     yield
+
+
+@pytest.fixture()
+def auth():
+    """Factory: register a fresh user and return {user_id, token, headers}.
+
+    Tokens are stateless JWTs and every client shares the same DB, so a token
+    minted here authenticates any TestClient in the run.
+    """
+
+    def _register() -> dict:
+        with TestClient(create_app()) as c:
+            resp = c.post(
+                "/api/auth/register",
+                json={
+                    "name": "Test User",
+                    "email": f"auth-{uuid.uuid4().hex[:10]}@example.com",
+                    "password": "hunter2-secure",
+                },
+            )
+            assert resp.status_code == 201, resp.text
+            body = resp.json()
+            token = body["access_token"]
+            return {
+                "user_id": body["user"]["id"],
+                "token": token,
+                "headers": {"Authorization": f"Bearer {token}"},
+            }
+
+    return _register

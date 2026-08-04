@@ -1,10 +1,13 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from app.models.user import User
+from app.services.auth_service import get_current_user
 
 router = APIRouter(prefix="", tags=["dashboard"])
 
 
 @router.get("/dashboard")
-async def get_dashboard() -> dict:
+async def get_dashboard(user: User = Depends(get_current_user)) -> dict:
     return {
         "stats": [
             {"label": "Resumes Analyzed", "value": 24, "delta": "+12%"},
