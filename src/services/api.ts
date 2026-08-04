@@ -37,8 +37,57 @@ import type { RoadmapPlan } from "@/lib/roadmap";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
+/** The backend's auth payload — the subset of the user we keep client-side. */
+interface ApiUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+interface ApiAuthResponse {
+  access_token: string;
+  token_type: string;
+  user: ApiUser;
+}
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join("") || "U";
+
+/** Map the backend user ({id,email,name}) onto the richer client profile. */
+function mapUserFromApi(apiUser: ApiUser): User {
+  return {
+    id: apiUser.id,
+    name: apiUser.name,
+    email: apiUser.email,
+    avatarInitials: initials(apiUser.name),
+    plan: "Free", // backend has no billing model yet
+    title: "",
+    location: "",
+    bio: "",
+    yearsExperience: 0,
+  };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, init);
+  const token = useAuthStore.getState().token;
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      ...(init?.headers ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  // A 401 on an authenticated call means the stored session is dead — drop it
+  // so RequireAuth sends the user back to /auth/login. A login attempt carries
+  // no token, so a bad-password 401 just surfaces as an error below.
+  if (res.status === 401 && token) {
+    useAuthStore.getState().logout();
+  }
   if (!res.ok) {
     let detail = `Request failed (${res.status})`;
     try {
@@ -66,13 +115,28 @@ interface ApiResumeListItem {
 
 export const authService = {
   async login(email: string, password: string): Promise<User> {
-    return useAuthStore.getState().login(email, password);
+    const data = await request<ApiAuthResponse>("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const user = mapUserFromApi(data.user);
+    useAuthStore.getState().setSession(data.access_token, user);
+    return user;
   },
   async signup(name: string, email: string, password: string): Promise<User> {
-    return useAuthStore.getState().signup(name, email, password);
+    const data = await request<ApiAuthResponse>("/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    });
+    const user = mapUserFromApi(data.user);
+    useAuthStore.getState().setSession(data.access_token, user);
+    return user;
   },
-  async forgotPassword(email: string): Promise<void> {
-    return useAuthStore.getState().requestPasswordReset(email);
+  async forgotPassword(_email: string): Promise<void> {
+    // No backend endpoint yet — the reset flow is frontend-only for now.
+    await new Promise((r) => setTimeout(r, 600));
   },
   logout(): void {
     useAuthStore.getState().logout();
@@ -92,6 +156,8 @@ export const resumeService = {
     return await new Promise<{ id: string; fileName: string }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("POST", `${BASE_URL}/resumes`);
+      const token = useAuthStore.getState().token;
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100));
       };

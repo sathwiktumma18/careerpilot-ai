@@ -31,8 +31,8 @@ function SignupPage() {
       await authService.signup(values.name, values.email, values.password);
       toast.success("Account created");
       navigate({ to: "/dashboard" });
-    } catch {
-      toast.error("Could not create account");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not create account");
     }
   }
 

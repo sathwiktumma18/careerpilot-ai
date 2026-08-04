@@ -35,7 +35,7 @@ function LoginPage() {
       toast.success("Welcome back");
       navigate({ to: next && next !== "/" ? next : "/dashboard" });
     } catch (e) {
-      toast.error("Sign in failed. Please try again.");
+      toast.error(e instanceof Error ? e.message : "Sign in failed. Please try again.");
     }
   }
 

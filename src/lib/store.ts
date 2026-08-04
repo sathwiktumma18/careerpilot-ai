@@ -26,9 +26,8 @@ export type User = {
 
 type AuthState = {
   user: User | null;
-  login: (email: string, password: string) => Promise<User>;
-  signup: (name: string, email: string, password: string) => Promise<User>;
-  requestPasswordReset: (email: string) => Promise<void>;
+  token: string | null;
+  setSession: (token: string, user: User) => void;
   logout: () => void;
   updateProfile: (patch: Partial<User>) => void;
 };
@@ -45,47 +44,12 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      async login(email, _password) {
-        await new Promise((r) => setTimeout(r, 500));
-        const name = email
-          .split("@")[0]
-          .replace(/[._-]+/g, " ")
-          .replace(/\b\w/g, (c) => c.toUpperCase());
-        const user: User = {
-          id: crypto.randomUUID(),
-          name,
-          email,
-          avatarInitials: initials(name),
-          plan: "Pro",
-          title: "Senior Full-Stack Engineer",
-          location: "Berlin, DE",
-          bio: "Full-stack engineer building the future of career tooling with CareerPilot.",
-          yearsExperience: 6,
-        };
-        set({ user });
-        return user;
-      },
-      async signup(name, email, _password) {
-        await new Promise((r) => setTimeout(r, 600));
-        const user: User = {
-          id: crypto.randomUUID(),
-          name,
-          email,
-          avatarInitials: initials(name),
-          plan: "Free",
-          title: "Software Engineer",
-          location: "",
-          bio: "",
-          yearsExperience: 0,
-        };
-        set({ user });
-        return user;
-      },
-      async requestPasswordReset(_email) {
-        await new Promise((r) => setTimeout(r, 700));
+      token: null,
+      setSession(token, user) {
+        set({ token, user });
       },
       logout() {
-        set({ user: null });
+        set({ user: null, token: null });
       },
       updateProfile(patch) {
         set((s) =>
@@ -101,7 +65,16 @@ export const useAuthStore = create<AuthState>()(
         );
       },
     }),
-    { name: "careerpilot.auth", storage: createJSONStorage(() => localStorage) },
+    {
+      name: "careerpilot.auth",
+      storage: createJSONStorage(() => localStorage),
+      // A user persisted before the token existed (or with a cleared token) has
+      // no valid session — treat it as logged out rather than letting the UI in
+      // with an authentication header it can't produce.
+      onRehydrateStorage: () => (state) => {
+        if (state?.user && !state?.token) state.logout();
+      },
+    },
   ),
 );
 
