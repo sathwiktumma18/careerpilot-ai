@@ -25,6 +25,13 @@ import {
   type ApiJobMatchResponse,
 } from "@/lib/job-match-mapper";
 import type { JobLite, JobMatchResponse } from "@/lib/job-match";
+import {
+  mapInterviewFeedbackFromApi,
+  mapInterviewSessionFromApi,
+  type ApiInterviewFeedback,
+  type ApiInterviewSession,
+} from "@/lib/interview-mapper";
+import type { Difficulty, InterviewFeedback, InterviewSession } from "@/lib/interview";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -230,6 +237,50 @@ export const dashboardService = {
   },
 };
 
+/* -------------------------------- Interview -------------------------------- */
+
+export interface InterviewStartParams {
+  resumeId?: string; // optional — a generic session works without one
+  role?: string;
+  difficulty?: Difficulty;
+  count?: number;
+}
+
+export const interviewService = {
+  async start(params: InterviewStartParams): Promise<InterviewSession> {
+    const raw = await request<ApiInterviewSession>("/interview/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resume_id: params.resumeId ?? null,
+        role: params.role ?? "Software Engineer",
+        difficulty: params.difficulty ?? "mid",
+        count: params.count ?? 5,
+      }),
+    });
+    const session = mapInterviewSessionFromApi(raw);
+    useNotificationStore.getState().push({
+      title: "Interview session ready",
+      detail: `${session.questions.length} questions for ${session.role} (${session.difficulty})`,
+      kind: "interview",
+    });
+    return session;
+  },
+
+  async feedback(
+    sessionId: string,
+    questionId: string,
+    answer: string,
+  ): Promise<InterviewFeedback> {
+    const raw = await request<ApiInterviewFeedback>("/interview/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, question_id: questionId, answer }),
+    });
+    return mapInterviewFeedbackFromApi(raw);
+  },
+};
+
 /* -------------------------------- Job Match -------------------------------- */
 
 export interface JobMatchParams {
@@ -276,4 +327,5 @@ export const api = {
   notificationService,
   dashboardService,
   jobMatchService,
+  interviewService,
 };
