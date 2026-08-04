@@ -23,6 +23,10 @@ venv/
 .venv/
 *.egg-info/
 
+# Backend
+backend/.env
+backend/data/
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
