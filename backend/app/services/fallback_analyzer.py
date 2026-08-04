@@ -22,7 +22,7 @@ from app.schemas.resume import (
     Suggestion,
     TrendPoint,
 )
-from app.services.skill_catalog import RADAR_AREAS, SKILLS, skills_in_category
+from app.services.skill_catalog import RADAR_AREAS, SKILLS, alias_pattern, skills_in_category
 
 # --------------------------------------------------------------------------- #
 # Small utilities
@@ -57,17 +57,12 @@ def _clamp(value: int, lo: int, hi: int) -> int:
     return max(lo, min(hi, value))
 
 
-def _alias_pattern(alias: str) -> str:
-    a = alias.strip()
-    return rf"(?<!\w)(?:{re.escape(a)})(?!\w)"
-
-
 def _skill_counts(text: str) -> dict[str, int]:
     """Count catalog skill hits (alias-based, word-boundary matched)."""
     norm = _norm(text)
     counts: dict[str, int] = {}
     for skill in SKILLS:
-        pattern = re.compile("|".join(_alias_pattern(a) for a in skill.aliases))
+        pattern = re.compile("|".join(alias_pattern(a) for a in skill.aliases))
         counts[skill.name] = len(pattern.findall(norm))
     return counts
 

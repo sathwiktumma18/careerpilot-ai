@@ -5,6 +5,7 @@ technologies that should count as evidence of it in a resume's text.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 # Radar / breakdown areas — skill categories roll up into these.
@@ -87,9 +88,23 @@ for _skill in SKILLS:
 
 
 def normalize_name(name: str) -> str:
-    """Best-effort: map an arbitrary string to a canonical catalog skill name."""
-    return ALIAS_TO_SKILL.get(name.strip().lower(), name)
+    """Best-effort: map an arbitrary string to a canonical catalog skill name.
+
+    Returns the input unchanged when nothing in the catalog matches, so callers
+    can rely on the return being a plain name string.
+    """
+    skill = ALIAS_TO_SKILL.get(name.strip().lower())
+    return skill.name if skill else name
 
 
 def skills_in_category(category: str) -> list[str]:
     return [s.name for s in SKILLS if s.category == category]
+
+
+def alias_pattern(alias: str) -> str:
+    """Regex for a word-boundary text match of one skill alias (case-insensitive).
+
+    Shared by the fallback analyzer and the Job Match skill detector so both
+    agree on what counts as evidence of a skill.
+    """
+    return rf"(?<!\w)(?:{re.escape(alias.strip())})(?!\w)"
