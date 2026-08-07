@@ -221,8 +221,9 @@ async def generate_roadmap(
     # as "no resume" so it can't leak skill data.
     if resume_id and user_id:
         resume = resume_service.get_owned_or_none(db, resume_id, user_id)
-        if resume and resume.analysis:
-            resume_skills = [s["name"] for s in resume.analysis.get("detected_skills", [])]
+        cv = resume.current_version if resume else None
+        if cv and cv.analysis:
+            resume_skills = [s["name"] for s in cv.analysis.get("detected_skills", [])]
 
     gaps = _gap_skills(target_role, resume_skills)
 

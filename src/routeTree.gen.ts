@@ -28,6 +28,7 @@ import { Route as AuthLoginRouteImport } from './routes/auth.login'
 import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
 import { Route as ResumeAnalysisIndexRouteImport } from './routes/resume.analysis.index'
 import { Route as ResumeAnalysisIdRouteImport } from './routes/resume.analysis.$id'
+import { Route as AuthOauthCallbackRouteImport } from './routes/auth.oauth.callback'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -124,6 +125,11 @@ const ResumeAnalysisIdRoute = ResumeAnalysisIdRouteImport.update({
   path: '/resume/analysis/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthOauthCallbackRoute = AuthOauthCallbackRouteImport.update({
+  id: '/oauth/callback',
+  path: '/oauth/callback',
+  getParentRoute: () => AuthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/resume/upload': typeof ResumeUploadRoute
   '/auth/': typeof AuthIndexRoute
   '/resume/': typeof ResumeIndexRoute
+  '/auth/oauth/callback': typeof AuthOauthCallbackRoute
   '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
   '/resume/analysis/': typeof ResumeAnalysisIndexRoute
 }
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/resume/upload': typeof ResumeUploadRoute
   '/auth': typeof AuthIndexRoute
   '/resume': typeof ResumeIndexRoute
+  '/auth/oauth/callback': typeof AuthOauthCallbackRoute
   '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
   '/resume/analysis': typeof ResumeAnalysisIndexRoute
 }
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/resume/upload': typeof ResumeUploadRoute
   '/auth/': typeof AuthIndexRoute
   '/resume/': typeof ResumeIndexRoute
+  '/auth/oauth/callback': typeof AuthOauthCallbackRoute
   '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
   '/resume/analysis/': typeof ResumeAnalysisIndexRoute
 }
@@ -208,6 +217,7 @@ export interface FileRouteTypes {
     | '/resume/upload'
     | '/auth/'
     | '/resume/'
+    | '/auth/oauth/callback'
     | '/resume/analysis/$id'
     | '/resume/analysis/'
   fileRoutesByTo: FileRoutesByTo
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/resume/upload'
     | '/auth'
     | '/resume'
+    | '/auth/oauth/callback'
     | '/resume/analysis/$id'
     | '/resume/analysis'
   id:
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/resume/upload'
     | '/auth/'
     | '/resume/'
+    | '/auth/oauth/callback'
     | '/resume/analysis/$id'
     | '/resume/analysis/'
   fileRoutesById: FileRoutesById
@@ -406,6 +418,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResumeAnalysisIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/oauth/callback': {
+      id: '/auth/oauth/callback'
+      path: '/oauth/callback'
+      fullPath: '/auth/oauth/callback'
+      preLoaderRoute: typeof AuthOauthCallbackRouteImport
+      parentRoute: typeof AuthRoute
+    }
   }
 }
 
@@ -414,6 +433,7 @@ interface AuthRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute
   AuthSignupRoute: typeof AuthSignupRoute
   AuthIndexRoute: typeof AuthIndexRoute
+  AuthOauthCallbackRoute: typeof AuthOauthCallbackRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
@@ -421,6 +441,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthSignupRoute: AuthSignupRoute,
   AuthIndexRoute: AuthIndexRoute,
+  AuthOauthCallbackRoute: AuthOauthCallbackRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)

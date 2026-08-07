@@ -11,6 +11,7 @@ import {
   useSettingsStore,
   useNotificationStore,
   type ResumeRecord,
+  type ResumeVersionLite,
   type Settings,
   type User,
   type NotificationItem,
@@ -105,10 +106,41 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 interface ApiResumeListItem {
   id: string;
+  title: string;
   file_name: string;
   status: string;
   ats_score: number | null;
   created_at: string;
+  version_count: number;
+  view_count: number;
+  last_viewed_at: string | null;
+  first_ats: number | null;
+}
+
+interface ApiVersionInfo {
+  version_no: number;
+  file_name: string;
+  status: string;
+  ats_score: number | null;
+  created_at: string;
+  analyzed_at: string | null;
+}
+
+interface ApiResumeDetail extends ApiResumeListItem {
+  current_version_no: number;
+  versions: ApiVersionInfo[];
+  analysis: ApiAnalysis | null;
+}
+
+function mapVersionFromApi(v: ApiVersionInfo): ResumeVersionLite {
+  return {
+    versionNo: v.version_no,
+    fileName: v.file_name,
+    status: v.status,
+    atsScore: v.ats_score,
+    createdAt: v.created_at,
+    analyzedAt: v.analyzed_at,
+  };
 }
 
 /* --------------------------------- Auth ----------------------------------- */
@@ -150,6 +182,28 @@ export const authService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, token, new_password: newPassword }),
     });
+  },
+  /**
+   * Start social sign-in. Returns `null` when the provider isn't configured on
+   * the server (the UI keeps the button in "coming soon" mode). Otherwise the
+   * caller redirects the whole page to `url`.
+   */
+  async oauthStart(provider: "google" | "github"): Promise<string | null> {
+    try {
+      const data = await request<{ url: string }>(`/auth/oauth/${provider}/authorize`);
+      return data.url;
+    } catch {
+      return null; // 501 = not configured
+    }
+  },
+  /** Turn an OAuth callback token into a session (GET /auth/me with it). */
+  async completeOAuth(token: string): Promise<User> {
+    const data = await request<ApiUser>("/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const user = mapUserFromApi(data);
+    useAuthStore.getState().setSession(token, user);
+    return user;
   },
   logout(): void {
     useAuthStore.getState().logout();
@@ -205,6 +259,14 @@ export const resumeService = {
     return record;
   },
 
+  /** Return the stored analysis of a specific version (analyzes on first call). */
+  async getVersionAnalysis(id: string, versionNo: number): Promise<Analysis> {
+    const raw = await request<ApiAnalysis>(`/resumes/${id}/analyze?version=${versionNo}`, {
+      method: "POST",
+    });
+    return mapAnalysisFromApi(raw);
+  },
+
   async list(): Promise<ResumeRecord[]> {
     const items = await request<ApiResumeListItem[]>("/resumes");
     const store = useResumeStore.getState();
@@ -212,24 +274,91 @@ export const resumeService = {
       const existing = store.getResume(item.id);
       return {
         id: item.id,
+        title: item.title,
         fileName: item.file_name,
         sizeKb: 0,
         uploadedAt: item.created_at,
         analysis: existing?.analysis ?? emptyAnalysis(item.id, item.file_name),
+        versions: existing?.versions ?? [],
+        versionCount: item.version_count,
+        viewCount: item.view_count,
+        firstAts: item.first_ats,
       };
     });
     store.hydrate(records);
     return records;
   },
 
+  /** Full detail for a resume — versions + current analysis; increments views. */
   async get(id: string): Promise<ResumeRecord | null> {
-    const detail = await request<ApiResumeListItem & { analysis: ApiAnalysis | null }>(
-      `/resumes/${id}`,
-    );
-    if (!detail.analysis) return null;
-    const analysis = mapAnalysisFromApi(detail.analysis);
-    useResumeStore.getState().updateResumeAnalysis(id, analysis);
-    return useResumeStore.getState().getResume(id) ?? null;
+    const detail = await request<ApiResumeDetail>(`/resumes/${id}`);
+    const store = useResumeStore.getState();
+    const existing = store.getResume(id);
+    const record: ResumeRecord = {
+      id: detail.id,
+      title: detail.title,
+      fileName: detail.file_name,
+      sizeKb: existing?.sizeKb ?? 0,
+      uploadedAt: detail.created_at,
+      analysis: detail.analysis
+        ? mapAnalysisFromApi(detail.analysis)
+        : (existing?.analysis ?? emptyAnalysis(detail.id, detail.file_name)),
+      versions: detail.versions.map(mapVersionFromApi),
+      versionCount: detail.version_count,
+      viewCount: detail.view_count,
+      firstAts: detail.first_ats,
+    };
+    store.upsert(record);
+    return record;
+  },
+
+  /** Upload a new snapshot of an existing resume group. */
+  async addVersion(
+    id: string,
+    file: File,
+    onProgress?: (pct: number) => void,
+  ): Promise<ResumeVersionLite> {
+    const form = new FormData();
+    form.append("file", file, file.name);
+
+    const data = await new Promise<{
+      id: string;
+      version_no: number;
+      file_name: string;
+      status: string;
+    }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${BASE_URL}/resumes/${id}/versions`);
+      const token = useAuthStore.getState().token;
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch {
+            reject(new Error("Invalid upload response"));
+          }
+        } else {
+          reject(new Error(`Upload failed (${xhr.status})`));
+        }
+      };
+      xhr.onerror = () => reject(new Error("Upload failed"));
+      xhr.send(form);
+    });
+
+    const version: ResumeVersionLite = {
+      versionNo: data.version_no,
+      fileName: data.file_name,
+      status: data.status,
+      atsScore: null,
+      createdAt: new Date().toISOString(),
+      analyzedAt: null,
+    };
+    useResumeStore.getState().addVersion(id, version);
+    return version;
   },
 
   async remove(id: string): Promise<void> {
@@ -286,6 +415,8 @@ export const dashboardService = {
       ? Math.round(resumes.reduce((a, r) => a + r.analysis.atsScore, 0) / resumes.length)
       : 0;
     const matchedRoles = resumes.reduce((a, r) => a + r.analysis.recommendedRoles.length, 0);
+    const totalVersions = resumes.reduce((a, r) => a + r.versionCount, 0);
+    const totalViews = resumes.reduce((a, r) => a + r.viewCount, 0);
     return {
       stats: [
         {
@@ -301,15 +432,15 @@ export const dashboardService = {
           trend: "up" as const,
         },
         {
-          label: "Matched Roles",
-          value: String(matchedRoles),
-          delta: matchedRoles ? `+${Math.min(matchedRoles, 12)}` : "—",
+          label: "Versions Created",
+          value: String(totalVersions),
+          delta: totalVersions ? `${totalVersions} snapshot${totalVersions > 1 ? "s" : ""}` : "—",
           trend: "up" as const,
         },
         {
-          label: "Interviews Ready",
-          value: String(Math.max(0, Math.floor(avgAts / 10))),
-          delta: avgAts ? "+2" : "—",
+          label: "Total Views",
+          value: String(totalViews),
+          delta: totalViews ? "across all resumes" : "—",
           trend: "up" as const,
         },
       ],

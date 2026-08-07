@@ -34,7 +34,8 @@ function Dashboard() {
     const avg = resumes.length
       ? Math.round(resumes.reduce((a, r) => a + r.analysis.atsScore, 0) / resumes.length)
       : 0;
-    const matched = resumes.reduce((a, r) => a + r.analysis.recommendedRoles.length, 0);
+    const versions = resumes.reduce((a, r) => a + r.versionCount, 0);
+    const views = resumes.reduce((a, r) => a + r.viewCount, 0);
     return [
       {
         label: "Resumes Analyzed",
@@ -49,19 +50,33 @@ function Dashboard() {
         trend: "up" as const,
       },
       {
-        label: "Matched Roles",
-        value: String(matched),
-        delta: matched ? `+${Math.min(matched, 12)}` : "—",
+        label: "Versions Created",
+        value: String(versions),
+        delta: versions ? `${versions} snapshot${versions > 1 ? "s" : ""}` : "—",
         trend: "up" as const,
       },
       {
-        label: "Interviews Ready",
-        value: String(Math.max(0, Math.floor(avg / 10))),
-        delta: avg ? "+2" : "—",
+        label: "Total Views",
+        value: String(views),
+        delta: views ? "across all resumes" : "—",
         trend: "up" as const,
       },
     ];
   })();
+
+  // Per-resume ATS journey: v1 score → latest score, with a delta badge.
+  // A resume is "analyzed" once its current version has a real analysis —
+  // emptyAnalysis is all zeros, so never show a misleading delta from it.
+  const atsTrendRows = resumes.map((r) => {
+    const first = r.firstAts;
+    const currentVersion = r.versions[r.versions.length - 1];
+    const analyzed = currentVersion
+      ? currentVersion.status === "analyzed"
+      : r.analysis.atsScore > 0;
+    const latest = analyzed ? r.analysis.atsScore : null;
+    const delta = first != null && latest != null ? latest - first : null;
+    return { resume: r, first, latest, delta };
+  });
 
   return (
     <AppShell>
@@ -110,6 +125,88 @@ function Dashboard() {
             );
           })}
         </div>
+      )}
+
+      {atsTrendRows.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass mt-6 overflow-hidden rounded-2xl"
+        >
+          <div className="flex items-center justify-between px-6 pt-6">
+            <div>
+              <h3 className="text-sm font-semibold">Resume ATS journey</h3>
+              <p className="text-xs text-muted-foreground">
+                How each resume improved from its first version to the current one
+              </p>
+            </div>
+            <div className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+              {atsTrendRows.filter((r) => r.first != null && r.latest != null).length} tracked
+            </div>
+          </div>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
+                  <th className="px-6 py-2 font-medium">Resume</th>
+                  <th className="px-4 py-2 font-medium">First ATS</th>
+                  <th className="px-4 py-2 font-medium">Current ATS</th>
+                  <th className="px-4 py-2 font-medium">Delta</th>
+                  <th className="px-6 py-2 font-medium">Views</th>
+                </tr>
+              </thead>
+              <tbody>
+                {atsTrendRows.map((row) => {
+                  const d = row.delta;
+                  const up = d != null && d > 0;
+                  const down = d != null && d < 0;
+                  return (
+                    <tr
+                      key={row.resume.id}
+                      className="border-b border-border/50 transition last:border-0 hover:bg-card/40"
+                    >
+                      <td className="px-6 py-3">
+                        <Link
+                          to="/resume/analysis/$id"
+                          params={{ id: row.resume.id }}
+                          className="font-medium hover:text-primary"
+                        >
+                          {row.resume.fileName}
+                        </Link>
+                        <span className="ml-2 rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          {row.resume.versionCount}{" "}
+                          {row.resume.versionCount > 1 ? "versions" : "version"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.first ?? "—"}</td>
+                      <td className="px-4 py-3 font-semibold">{row.latest ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        {d == null ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : (
+                          <span
+                            className={
+                              "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium " +
+                              (down
+                                ? "bg-destructive/10 text-destructive"
+                                : up
+                                  ? "bg-primary/10 text-primary"
+                                  : "bg-card text-muted-foreground")
+                            }
+                          >
+                            {up ? "↑" : down ? "↓" : ""} {d > 0 ? "+" : ""}
+                            {d}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-3 text-muted-foreground">{row.resume.viewCount}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
       )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">

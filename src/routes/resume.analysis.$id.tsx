@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   Bar,
@@ -21,16 +21,19 @@ import {
   CheckCircle2,
   Lightbulb,
   Briefcase,
+  History,
+  Upload,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { useResumeStore } from "@/lib/store";
+import { type Analysis } from "@/lib/analysis";
 import { exportAnalysisReport } from "@/lib/report-export";
 import { resumeService } from "@/services/api";
 import { cn } from "@/lib/utils";
 import { FileText } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/resume/analysis/$id")({
@@ -47,21 +50,41 @@ const severityStyles = {
 
 function AnalysisPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const record = useResumeStore((s) => s.resumes.find((r) => r.id === id));
   const selectResume = useResumeStore((s) => s.selectResume);
   const selectedId = useResumeStore((s) => s.selectedId);
+  // Version picker: null = the current version; otherwise the fetched analysis
+  // of the chosen historical version.
+  const [viewingVersion, setViewingVersion] = useState<number | null>(null);
+  const [versionAnalysis, setVersionAnalysis] = useState<Analysis | null>(null);
 
   useEffect(() => {
     if (!record) return;
     if (selectedId !== record.id) selectResume(record.id);
   }, [record, selectResume, selectedId]);
 
-  // Cold-store hydration: a direct visit to /resume/analysis/<id> (fresh
-  // reload) may arrive before the store has synced — pull it from the backend.
+  // Always pull fresh detail (versions + view count) when the page mounts —
+  // covers cold-store reloads and keeps the picker in sync after new uploads.
   useEffect(() => {
-    if (record) return;
     resumeService.get(id).catch(() => toast.error("Could not load this analysis"));
-  }, [id, record]);
+  }, [id]);
+
+  async function handleVersionChange(versionNo: number) {
+    // The current version is the highest one — no fetch needed.
+    if (record && versionNo === record.versionCount) {
+      setViewingVersion(null);
+      setVersionAnalysis(null);
+      return;
+    }
+    try {
+      const a = await resumeService.getVersionAnalysis(id, versionNo);
+      setViewingVersion(versionNo);
+      setVersionAnalysis(a);
+    } catch {
+      toast.error("Could not load that version");
+    }
+  }
 
   if (!record) {
     return (
@@ -84,7 +107,8 @@ function AnalysisPage() {
     );
   }
 
-  const a = record.analysis;
+  // The version being viewed: the current one, or a fetched historical one.
+  const a = viewingVersion && versionAnalysis ? versionAnalysis : record.analysis;
   async function handleExport() {
     try {
       await exportAnalysisReport(a);
@@ -100,7 +124,7 @@ function AnalysisPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow={a.fileName}
+        eyebrow={record.fileName}
         title={`Analysis for ${a.candidate.name}`}
         description={`${a.candidate.title} · ${a.candidate.location} · ${a.candidate.yearsExperience} years experience`}
         actions={
@@ -113,13 +137,54 @@ function AnalysisPage() {
             </button>
             <button
               onClick={handleExport}
-              className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)]"
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card"
             >
               <Download className="h-4 w-4" /> Export report
+            </button>
+            <button
+              onClick={() => navigate({ to: "/resume/upload", search: { resumeId: id } })}
+              className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)]"
+            >
+              <Upload className="h-4 w-4" /> Upload new version
             </button>
           </>
         }
       />
+
+      {/* Version picker — switch between snapshots of this resume. */}
+      {record.versions.length > 1 && (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/40 px-4 py-3">
+          <History className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Version
+          </span>
+          <select
+            value={viewingVersion ?? record.versionCount}
+            onChange={(e) => handleVersionChange(Number(e.target.value))}
+            className="h-9 rounded-lg border border-input bg-card px-2 text-sm outline-none focus:border-primary"
+            aria-label="Select resume version"
+          >
+            {record.versions.map((v) => (
+              <option key={v.versionNo} value={v.versionNo}>
+                v{v.versionNo} · {v.fileName}
+                {v.atsScore != null
+                  ? ` · ATS ${v.atsScore}`
+                  : v.status === "uploaded"
+                    ? " · not analyzed"
+                    : ""}
+              </option>
+            ))}
+          </select>
+          {viewingVersion != null && (
+            <button
+              onClick={() => handleVersionChange(record.versionCount)}
+              className="text-xs text-primary hover:underline"
+            >
+              Back to current version
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* ATS Score */}

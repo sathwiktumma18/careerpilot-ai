@@ -8,6 +8,26 @@ class UploadResponse(BaseModel):
     file_name: str
 
 
+class VersionResponse(BaseModel):
+    """A freshly uploaded version (POST /{id}/versions returns this)."""
+
+    id: str
+    version_no: int
+    file_name: str
+    status: str
+
+
+class VersionInfo(BaseModel):
+    """One row in a resume's version history (no analysis payload)."""
+
+    version_no: int
+    file_name: str
+    status: str
+    ats_score: int | None
+    created_at: str
+    analyzed_at: str | None
+
+
 class SkillScore(BaseModel):
     name: str
     level: int = Field(ge=0, le=100)
@@ -74,12 +94,21 @@ class AnalysisResponse(BaseModel):
 
 
 class ResumeListItem(BaseModel):
+    """One row on the dashboard/list — group + current version, plus analytics."""
+
     id: str
-    file_name: str
-    status: str
-    ats_score: int | None
+    title: str
+    file_name: str  # current version's file name
+    status: str  # current version's status
+    ats_score: int | None  # current version's ATS score
     created_at: str
+    version_count: int
+    view_count: int
+    last_viewed_at: str | None
+    first_ats: int | None  # version 1's ATS score, for the trend delta
 
 
 class ResumeDetail(ResumeListItem):
+    current_version_no: int
+    versions: list[VersionInfo]
     analysis: AnalysisResponse | None = None

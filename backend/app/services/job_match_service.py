@@ -232,10 +232,11 @@ async def match_resume(
 ) -> dict:
     # Only the resume's owner may match against it — someone else's id 404s.
     resume = resume_service.get_owned(db, resume_id, user_id)
-    if not resume.analysis:
+    cv = resume.current_version
+    if cv is None or not cv.analysis:
         raise JobMatchError("Analyze this resume first — matching needs its skill profile.")
 
-    raw_detected = _parse_resume_skills(resume.analysis)
+    raw_detected = _parse_resume_skills(cv.analysis)
     if not raw_detected:
         raise JobMatchError("No skills detected on this resume yet. Try re-analyzing.")
     # Match on canonical catalog names so an LLM's "PostgreSQL" aligns with the
@@ -243,7 +244,7 @@ async def match_resume(
     resume_skills = {normalize_name(s) for s in raw_detected}
 
     try:
-        resume_text = resume.text or extract_text(resume.file_path)
+        resume_text = cv.text or extract_text(cv.file_path)
     except PdfParseError as exc:
         raise JobMatchError(f"Could not read resume text: {exc}") from exc
 
@@ -295,7 +296,7 @@ async def match_resume(
 
     return {
         "resume_id": resume_id,
-        "resume_title": (resume.analysis.get("candidate") or {}).get("title", "Resume"),
+        "resume_title": (cv.analysis.get("candidate") or {}).get("title", "Resume"),
         "detected_skills": sorted(set(raw_detected)),
         "method": method,
         "results": results,

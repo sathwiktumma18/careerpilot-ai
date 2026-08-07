@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Sparkles, Github, Mail, Loader2 } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -20,9 +21,12 @@ const schema = z.object({
   password: z.string().min(6, "At least 6 characters"),
 });
 
+type OAuthProvider = "google" | "github";
+
 function LoginPage() {
   const navigate = useNavigate();
   const { next } = Route.useSearch();
+  const [oauthBusy, setOauthBusy] = useState<OAuthProvider | null>(null);
   const {
     register,
     handleSubmit,
@@ -37,6 +41,24 @@ function LoginPage() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Sign in failed. Please try again.");
     }
+  }
+
+  async function startOAuth(provider: OAuthProvider) {
+    if (oauthBusy) return;
+    setOauthBusy(provider);
+    try {
+      const url = await authService.oauthStart(provider);
+      if (url) {
+        // Full-page redirect to the provider; the callback route finishes login.
+        window.location.href = url;
+        return;
+      }
+      // null = not configured server-side; keep the button honest.
+      toast.info("Social sign-in isn't configured yet — use email for now.");
+    } catch {
+      toast.error("Could not start social sign-in");
+    }
+    setOauthBusy(null);
   }
 
   return (
@@ -67,17 +89,29 @@ function LoginPage() {
         <div className="mt-6 grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => toast.info("Social sign-in coming soon")}
-            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card"
+            disabled={oauthBusy !== null}
+            onClick={() => startOAuth("github")}
+            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card disabled:opacity-50"
           >
-            <Github className="h-4 w-4" /> GitHub
+            {oauthBusy === "github" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Github className="h-4 w-4" />
+            )}{" "}
+            GitHub
           </button>
           <button
             type="button"
-            onClick={() => toast.info("Social sign-in coming soon")}
-            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card"
+            disabled={oauthBusy !== null}
+            onClick={() => startOAuth("google")}
+            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card disabled:opacity-50"
           >
-            <Mail className="h-4 w-4" /> Google
+            {oauthBusy === "google" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Mail className="h-4 w-4" />
+            )}{" "}
+            Google
           </button>
         </div>
 

@@ -36,9 +36,10 @@ def test_match_normalizes_llm_skill_names(client, analyzed_resume):
 
     db = SessionLocal()
     resume = db.get(Resume, analyzed_resume["id"])
+    cv = resume.current_version
     # Assign a NEW dict — in-place mutation isn't tracked by SQLAlchemy's JSON column.
-    resume.analysis = {
-        **resume.analysis,
+    cv.analysis = {
+        **cv.analysis,
         "detected_skills": [
             {"name": "PostgreSQL", "level": 90},
             {"name": "Kafka", "level": 80},

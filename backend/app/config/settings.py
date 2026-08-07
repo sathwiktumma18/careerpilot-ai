@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 24h (long enough for a demo session)
 
+    # --- Social sign-in (OAuth). Leave unset to disable (endpoints answer 501
+    # and the frontend buttons show "coming soon"). Register OAuth apps with
+    # redirect URI "{oauth_redirect_base_url}/api/auth/oauth/{provider}/callback".
+    oauth_redirect_base_url: str = "http://localhost:8000"
+    google_oauth_client_id: str | None = None
+    google_oauth_client_secret: str | None = None
+    github_oauth_client_id: str | None = None
+    github_oauth_client_secret: str | None = None
+    # How long the signed OAuth state (authorize → callback) stays valid.
+    oauth_state_expire_minutes: int = 10
+
     # --- AI providers (free tier) ---
     # Gemini is the primary LLM. Leave GEMINI_API_KEY empty to fall through to
     # Ollama (local), then to the deterministic no-key analyzer.

@@ -82,12 +82,30 @@ export const useAuthStore = create<AuthState>()(
 /* Resumes                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/** One snapshot of a resume (from the backend's resume_versions). */
+export type ResumeVersionLite = {
+  versionNo: number;
+  fileName: string;
+  status: string; // uploaded | analyzed | error
+  atsScore: number | null;
+  createdAt: string;
+  analyzedAt: string | null;
+};
+
 export type ResumeRecord = {
   id: string;
+  /** Group name — the first upload's file name; stable across versions. */
+  title: string;
+  /** Current version's file name (what the UI mostly shows). */
   fileName: string;
   sizeKb: number;
   uploadedAt: string;
+  /** Analysis of the current version. */
   analysis: Analysis;
+  versions: ResumeVersionLite[];
+  versionCount: number;
+  viewCount: number;
+  firstAts: number | null;
 };
 
 type ResumeState = {
@@ -95,6 +113,9 @@ type ResumeState = {
   selectedId: string | null;
   addResume: (file: { name: string; size: number }) => ResumeRecord;
   updateResumeAnalysis: (id: string, analysis: Analysis) => void;
+  addVersion: (id: string, version: ResumeVersionLite) => void;
+  /** Replace-or-insert a full record (used when the backend returns detail). */
+  upsert: (record: ResumeRecord) => void;
   hydrate: (resumes: ResumeRecord[]) => void;
   removeResume: (id: string) => void;
   selectResume: (id: string) => void;
@@ -110,18 +131,65 @@ export const useResumeStore = create<ResumeState>()(
         const id = crypto.randomUUID();
         const record: ResumeRecord = {
           id,
+          title: file.name,
           fileName: file.name,
           sizeKb: Math.round(file.size / 1024),
           uploadedAt: new Date().toISOString(),
           analysis: emptyAnalysis(id, file.name),
+          versions: [],
+          versionCount: 1,
+          viewCount: 0,
+          firstAts: null,
         };
         set((s) => ({ resumes: [record, ...s.resumes], selectedId: id }));
         return record;
       },
       updateResumeAnalysis(id, analysis) {
         set((s) => ({
-          resumes: s.resumes.map((r) => (r.id === id ? { ...r, analysis } : r)),
+          resumes: s.resumes.map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  analysis,
+                  // Keep the picker in sync: the newest version just got scored.
+                  versions: r.versions.length
+                    ? r.versions.map((v, i) =>
+                        i === r.versions.length - 1
+                          ? { ...v, atsScore: analysis.atsScore, status: "analyzed" }
+                          : v,
+                      )
+                    : r.versions,
+                }
+              : r,
+          ),
         }));
+      },
+      addVersion(id, version) {
+        set((s) => ({
+          resumes: s.resumes.map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  fileName: version.fileName,
+                  versions: [...r.versions, version],
+                  versionCount: version.versionNo,
+                  // The current version is now unanalyzed until the user re-runs.
+                  analysis: emptyAnalysis(id, version.fileName),
+                }
+              : r,
+          ),
+        }));
+      },
+      upsert(record) {
+        set((s) => {
+          const exists = s.resumes.some((r) => r.id === record.id);
+          return {
+            resumes: exists
+              ? s.resumes.map((r) => (r.id === record.id ? record : r))
+              : [record, ...s.resumes],
+            selectedId: s.selectedId ?? record.id,
+          };
+        });
       },
       hydrate(resumes) {
         const current = get().selectedId;

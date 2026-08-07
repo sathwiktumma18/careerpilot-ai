@@ -59,7 +59,61 @@ Prereqs: Docker Desktop (or a Docker daemon) and your Gemini API key.
 | `JWT_ALGORITHM` | no | Default `HS256`. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | no | Default `1440` (24 h). |
 | `DATABASE_URL` | no | Defaults to SQLite for local dev/tests. `docker compose` overrides it with the in-stack Postgres (`postgresql+psycopg://careerpilot:careerpilot@postgres:5432/careerpilot`). Prod: same URL form pointing at a real instance with a strong password. |
-| `CORS_ORIGINS` | no | List of allowed browser origins. |
+| `CORS_ORIGINS` | no | List of allowed browser origins. The OAuth callback redirects back to `CORS_ORIGINS[0]/auth/oauth/callback`. |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | for Google sign-in | See [OAuth setup](#oauth-setup). Missing → `/api/auth/oauth/google/authorize` returns 501. |
+| `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` | for GitHub sign-in | See [OAuth setup](#oauth-setup). Missing → `/api/auth/oauth/github/authorize` returns 501. |
+| `OAUTH_REDIRECT_BASE_URL` | no | Defaults to `http://localhost:8000`. Provider callback URI = `{this}/api/auth/oauth/{provider}/callback`. |
+
+## OAuth setup
+
+Social sign-in uses the standard authorization-code flow (PKCE for Google,
+signed-JWT `state` for both). It is **fully optional** — with no credentials the
+buttons stay "coming soon" and the authorize endpoints answer 501. The OAuth
+callback URL the providers call is the same in dev and prod, just with a
+different host:
+
+```
+https://YOUR_API_HOST/api/auth/oauth/google/callback   (Google)
+https://YOUR_API_HOST/api/auth/oauth/github/callback  (GitHub)
+```
+
+### Google (OAuth client ID)
+
+1. Go to [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials)
+   → **Create credentials → OAuth client ID → Web application**.
+2. **Authorized redirect URIs** — add the Google callback URL above
+   (dev: `http://localhost:8000/api/auth/oauth/google/callback`).
+3. Copy the client ID and secret into `backend/.env`:
+   ```
+   GOOGLE_OAUTH_CLIENT_ID=xxx.apps.googleusercontent.com
+   GOOGLE_OAUTH_CLIENT_SECRET=GOCSPX-...
+   ```
+4. Restart the backend. Google login now redirects, and a brand-new Google
+   account is auto-created on first sign-in.
+
+### GitHub (OAuth App)
+
+1. Go to [GitHub → Settings → Developer settings → OAuth Apps](https://github.com/settings/developers)
+   → **New OAuth App**.
+2. **Authorization callback URL** — add the GitHub callback URL above
+   (dev: `http://localhost:8000/api/auth/oauth/github/callback`).
+3. Copy the client ID and client secret into `backend/.env`:
+   ```
+   GITHUB_OAUTH_CLIENT_ID=Iv1.xxxx
+   GITHUB_OAUTH_CLIENT_SECRET=xxxxxxxx
+   ```
+4. Restart the backend.
+
+### Notes
+
+- A social account whose email already exists as a password account is **not**
+  merged — the callback redirects to `/auth/oauth/callback?error=email_taken`
+  and the user signs in with their existing password.
+- Social users get a random unguessable password hash, so password login
+  always fails for them (they're expected to sign in via the provider).
+- In production, point `OAUTH_REDIRECT_BASE_URL` and the providers' registered
+  redirect URIs at the deployed API host, and keep `CORS_ORIGINS[0]` as the
+  deployed frontend origin (the callback lands there with the session token).
 
 Generate a secret with:
 

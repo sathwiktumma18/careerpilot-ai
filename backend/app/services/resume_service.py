@@ -1,7 +1,10 @@
-"""Resume upload + analysis orchestration.
+"""Resume upload + analysis orchestration, with version history.
 
-Uploads are stored on disk (data/uploads) and metadata/text/analysis in the
-database. Analysis runs through the provider chain (ai_provider) and always
+A "resume" is a logical group (Resume) that owns an ordered history of
+snapshots (ResumeVersion). Every upload creates a new version; `current_version`
+is the one the UI and features use by default. Uploads are stored on disk
+(data/uploads, one file per version) and metadata/text/analysis live in the
+version rows. Analysis runs through the provider chain (ai_provider) and always
 returns a schema-valid `AnalysisResponse` — from Gemini, Ollama, or the
 deterministic fallback, whichever is available.
 """
@@ -16,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.config.settings import settings
 from app.models.resume import Resume
+from app.models.version import ResumeVersion
 from app.schemas.resume import AnalysisResponse
 from app.services import ai_provider
 from app.services.pdf_parser import PdfParseError, extract_text
@@ -28,35 +32,79 @@ class ResumeNotFoundError(Exception):
     pass
 
 
+class ResumeVersionNotFoundError(Exception):
+    pass
+
+
 class UploadRejectedError(Exception):
     pass
 
 
 class ResumeService:
-    def register_upload(
-        self, db: Session, *, file_name: str, file_bytes: bytes, user_id: str
-    ) -> Resume:
+    # --- Uploads --------------------------------------------------------------
+
+    def _save_pdf(self, file_bytes: bytes) -> Path:
+        """Write an upload to disk; one file per version so versions never
+        clobber each other. Returns the stored path."""
+        version_id = str(uuid4())
+        upload_dir = ensure_dir(Path(settings.upload_dir))
+        path = upload_dir / f"{version_id}.pdf"
+        path.write_bytes(file_bytes)
+        return path
+
+    @staticmethod
+    def _check_upload(file_bytes: bytes) -> None:
         if not file_bytes:
             raise UploadRejectedError("Empty file")
         if len(file_bytes) > MAX_UPLOAD_BYTES:
             raise UploadRejectedError("File exceeds the 10MB limit")
 
-        resume_id = str(uuid4())
-        upload_dir = ensure_dir(Path(settings.upload_dir))
-        path = upload_dir / f"{resume_id}.pdf"
-        path.write_bytes(file_bytes)
+    def register_upload(
+        self, db: Session, *, file_name: str, file_bytes: bytes, user_id: str
+    ) -> Resume:
+        """First upload: creates the resume group + its version 1."""
+        self._check_upload(file_bytes)
+        path = self._save_pdf(file_bytes)
 
         resume = Resume(
-            id=resume_id,
+            id=str(uuid4()),
             user_id=user_id,
+            title=file_name,
+        )
+        version = ResumeVersion(
+            resume=resume,
+            version_no=1,
             file_name=file_name,
             file_path=str(path),
             status="uploaded",
         )
+        resume.current_version = version  # sets current_version_id
         db.add(resume)
         db.commit()
         db.refresh(resume)
         return resume
+
+    def add_version(
+        self, db: Session, *, resume_id: str, user_id: str, file_name: str, file_bytes: bytes
+    ) -> ResumeVersion:
+        """Upload a new snapshot of an existing group; bumps current_version."""
+        resume = self.get_owned(db, resume_id, user_id)
+        self._check_upload(file_bytes)
+        path = self._save_pdf(file_bytes)
+
+        next_no = max((v.version_no for v in resume.versions), default=0) + 1
+        version = ResumeVersion(
+            resume_id=resume.id,
+            version_no=next_no,
+            file_name=file_name,
+            file_path=str(path),
+            status="uploaded",
+        )
+        resume.current_version = version
+        db.add(version)
+        db.commit()
+        db.refresh(version)
+        return version
 
     # --- Ownership-scoped access. Every lookup is filtered by user_id, so a
     # caller can only ever see their own resumes — another user's id 404s
@@ -81,40 +129,76 @@ class ResumeService:
         )
         return list(db.scalars(stmt))
 
+    def get_owned_version(
+        self, db: Session, resume_id: str, user_id: str, version_no: int
+    ) -> ResumeVersion:
+        resume = self.get_owned(db, resume_id, user_id)
+        version = next(
+            (v for v in resume.versions if v.version_no == version_no), None
+        )
+        if version is None:
+            raise ResumeVersionNotFoundError(resume_id, version_no)
+        return version
+
     def delete_owned(self, db: Session, resume_id: str, user_id: str) -> None:
         resume = self.get_owned(db, resume_id, user_id)
-        # Best-effort cleanup of the stored PDF; the DB row is the source of truth.
-        try:
-            Path(resume.file_path).unlink(missing_ok=True)
-        except OSError:
-            pass
+        # Best-effort cleanup of the stored PDFs; the DB rows are the source of truth.
+        for version in resume.versions:
+            try:
+                Path(version.file_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+        # ORM cascade removes the versions (cascade="all, delete-orphan").
         db.delete(resume)
         db.commit()
 
-    async def analyze(self, db: Session, resume_id: str, user_id: str) -> AnalysisResponse:
+    # --- Analytics ------------------------------------------------------------
+
+    def record_view(self, db: Session, resume: Resume) -> None:
+        resume.view_count += 1
+        resume.last_viewed_at = datetime.now(timezone.utc)
+        db.commit()
+
+    # --- Analysis -------------------------------------------------------------
+
+    async def analyze(
+        self, db: Session, resume_id: str, user_id: str, version_no: int | None = None
+    ) -> AnalysisResponse:
         resume = self.get_owned(db, resume_id, user_id)
+        version = self._resolve_version(resume, version_no)
 
         # Re-analysis is cheap to re-run and keeps output fresh; only reuse the
         # stored result if a previous analysis exists AND text extraction worked.
-        if resume.status == "analyzed" and resume.analysis:
-            return AnalysisResponse.model_validate(resume.analysis)
+        if version.status == "analyzed" and version.analysis:
+            return AnalysisResponse.model_validate(version.analysis)
 
         try:
-            text = resume.text or extract_text(resume.file_path)
+            text = version.text or extract_text(version.file_path)
         except PdfParseError as exc:
-            resume.status = "error"
+            version.status = "error"
             db.commit()
             raise UploadRejectedError(str(exc)) from exc
 
-        analysis = await ai_provider.analyze_resume(resume.id, resume.file_name, text)
+        analysis = await ai_provider.analyze_resume(version.id, version.file_name, text)
 
-        resume.text = text
-        resume.analysis = analysis.model_dump(mode="json")
-        resume.ats_score = analysis.ats_score
-        resume.status = "analyzed"
-        resume.analyzed_at = datetime.now(timezone.utc)
+        version.text = text
+        version.analysis = analysis.model_dump(mode="json")
+        version.ats_score = analysis.ats_score
+        version.status = "analyzed"
+        version.analyzed_at = datetime.now(timezone.utc)
         db.commit()
         return analysis
+
+    def _resolve_version(self, resume: Resume, version_no: int | None) -> ResumeVersion:
+        """The version to analyze: explicitly requested one, else the current."""
+        if version_no is None:
+            if resume.current_version is None:
+                raise ResumeVersionNotFoundError(resume.id, "current")
+            return resume.current_version
+        version = next((v for v in resume.versions if v.version_no == version_no), None)
+        if version is None:
+            raise ResumeVersionNotFoundError(resume.id, version_no)
+        return version
 
 
 resume_service = ResumeService()

@@ -344,8 +344,9 @@ async def start_session(
     # treated as "no resume" (interviews work without one) so it can't leak.
     if resume_id and user_id:
         resume = resume_service.get_owned_or_none(db, resume_id, user_id)
-        if resume and resume.analysis:
-            skills = [s["name"] for s in resume.analysis.get("detected_skills", [])]
+        cv = resume.current_version if resume else None
+        if cv and cv.analysis:
+            skills = [s["name"] for s in cv.analysis.get("detected_skills", [])]
 
     questions: list[InterviewQuestion] | None = None
     if skills and settings.gemini_api_key:

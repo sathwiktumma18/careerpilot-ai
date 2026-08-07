@@ -1,17 +1,25 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Upload, X, CheckCircle2 } from "lucide-react";
+import { FileText, Upload, X, CheckCircle2, GitBranch } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState } from "@/components/common/LoadingState";
 import { resumeService } from "@/services/api";
+import { useResumeStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+
+const searchSchema = z.object({
+  // Present = this upload is a NEW VERSION of an existing resume group.
+  resumeId: z.string().optional().catch(undefined),
+});
 
 export const Route = createFileRoute("/resume/upload")({
   head: () => ({ meta: [{ title: "Upload resume — CareerPilot" }] }),
+  validateSearch: searchSchema,
   component: UploadPage,
 });
 
@@ -19,6 +27,11 @@ type Phase = "idle" | "uploading" | "analyzing";
 
 function UploadPage() {
   const navigate = useNavigate();
+  const { resumeId } = Route.useSearch();
+  const record = useResumeStore((s) =>
+    resumeId ? s.resumes.find((r) => r.id === resumeId) : undefined,
+  );
+  const isVersion = Boolean(resumeId);
   const [file, setFile] = useState<File | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
@@ -45,12 +58,22 @@ function UploadPage() {
     if (!file) return;
     setError(null);
     try {
-      setPhase("uploading");
-      setProgress(0);
-      const { id } = await resumeService.upload(file, setProgress);
+      let id: string;
+      if (isVersion && resumeId) {
+        // New snapshot of an existing group — upload keeps the stable resume id.
+        setPhase("uploading");
+        setProgress(0);
+        await resumeService.addVersion(resumeId, file, setProgress);
+        id = resumeId;
+      } else {
+        setPhase("uploading");
+        setProgress(0);
+        const out = await resumeService.upload(file, setProgress);
+        id = out.id;
+      }
       setPhase("analyzing");
       await resumeService.analyze(id);
-      toast.success("Analysis complete");
+      toast.success(isVersion ? "New version analyzed" : "Analysis complete");
       navigate({ to: "/resume/analysis/$id", params: { id } });
     } catch (e) {
       setPhase("idle");
@@ -62,9 +85,29 @@ function UploadPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="ResumeAI"
-        title="Upload your resume"
-        description="Drop a PDF up to 10MB. We'll parse structure, extract skills, and benchmark against your target roles."
+        eyebrow={isVersion ? `New version — v${(record?.versionCount ?? 0) + 1}` : "ResumeAI"}
+        title={
+          isVersion
+            ? `Upload a new version${record ? ` of ${record.title}` : ""}`
+            : "Upload your resume"
+        }
+        description={
+          isVersion
+            ? "Your previous snapshot stays untouched — this upload becomes the current version and gets a fresh analysis."
+            : "Drop a PDF up to 10MB. We'll parse structure, extract skills, and benchmark against your target roles."
+        }
+        actions={
+          isVersion && record ? (
+            <Link
+              to="/resume/analysis/$id"
+              params={{ id: record.id }}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card"
+            >
+              <GitBranch className="h-4 w-4" /> {record.versions.length} version
+              {record.versions.length > 1 ? "s" : ""}
+            </Link>
+          ) : undefined
+        }
       />
 
       {phase === "analyzing" ? (
@@ -170,7 +213,11 @@ function UploadPage() {
               disabled={!file || phase !== "idle"}
               className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90 disabled:opacity-40"
             >
-              {phase === "uploading" ? `Uploading ${progress}%` : "Analyze resume"}
+              {phase === "uploading"
+                ? `Uploading ${progress}%`
+                : isVersion
+                  ? "Upload & analyze version"
+                  : "Analyze resume"}
             </button>
           </div>
         </div>
