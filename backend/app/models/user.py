@@ -19,4 +19,8 @@ class User(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     # bcrypt hash — never store plaintext passwords.
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    # Password-reset: hash of a one-time reset token and when it expires. We store
+    # the hash (not the raw token) so a DB leak can't be replayed to reset accounts.
+    reset_token_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    reset_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
