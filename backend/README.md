@@ -1,8 +1,9 @@
 # CareerPilot AI — FastAPI Backend
 
-Production-ready FastAPI scaffold for CareerPilot AI. Structured for scale:
-routes, services, models, schemas, and config layers are separated so AI
-integrations (OpenAI, Anthropic, local models) drop in cleanly.
+FastAPI backend for CareerPilot AI: real Gemini-powered resume analysis, job
+matching, interview prep, and career roadmaps, with JWT auth and ownership
+scoped routes. Routes, services, models, schemas, and config layers are
+separated so AI providers drop in cleanly.
 
 ## Quickstart
 
@@ -44,12 +45,25 @@ backend/
 
 ## Endpoints
 
-| Method | Path         | Purpose                       |
-|--------|--------------|-------------------------------|
-| POST   | /upload      | Upload a resume (PDF)         |
-| POST   | /analyze     | Analyze an uploaded resume    |
-| GET    | /profile     | Current user profile          |
-| GET    | /dashboard   | Aggregated dashboard stats    |
+| Method | Path                    | Purpose                                       |
+|--------|-------------------------|-----------------------------------------------|
+| POST   | /api/auth/register      | Create an account (returns a JWT)             |
+| POST   | /api/auth/login         | Sign in (returns a JWT)                       |
+| POST   | /api/auth/forgot-password | Issue a one-time reset token (always 200)   |
+| POST   | /api/auth/reset-password | Set a new password with the token            |
+| GET    | /api/auth/me            | Current user                                 |
+| POST   | /api/resumes            | Upload a resume (PDF)                        |
+| GET    | /api/resumes            | List the current user's resumes              |
+| POST   | /api/resumes/{id}/analyze | Analyze a resume with Gemini                |
+| GET    | /api/resumes/{id}       | Resume detail + analysis                     |
+| DELETE | /api/resumes/{id}       | Delete a resume (ownership-scoped)           |
+| POST   | /api/match              | Rank jobs against a resume                   |
+| GET    | /api/jobs               | Candidate roles                              |
+| POST   | /api/interview/sessions | Start an interview session                   |
+| POST   | /api/interview/feedback | AI feedback on a single answer               |
+| POST   | /api/roadmap            | Generate a career roadmap                    |
+| GET    | /api/profile            | Current user profile                         |
+| GET    | /api/dashboard          | Aggregated dashboard stats                   |
+| GET    | /health                 | Liveness probe (used by Docker healthcheck)  |
 
-AI logic is intentionally not implemented — inject providers inside
-`services/resume_service.py`.
+AI providers live in `services/` (Gemini → Ollama → deterministic fallback).

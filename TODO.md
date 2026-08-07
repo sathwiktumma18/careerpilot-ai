@@ -1,30 +1,47 @@
-# TODO - CareerPilot-AI
+# CareerPilot AI — Roadmap
 
-## Phase 0 — Stabilize (DONE)
+## Done
 
-- [x] Step 0-2: Locate and edit the analysis route to avoid repeated Zustand updates that could freeze rendering.
-- [x] Step 3: Analysis runs via Web Worker off the main thread (`analysis-worker.ts`). Build verified; browser smoke-test of runtime stability still pending.
-- [x] Step 4: Fixed lint — `endOfLine: "auto"` in `.prettierrc` (Windows CRLF), ESLint ignores Python venvs. `npm run lint` → 0 errors, 6 benign react-refresh warnings.
-- [x] Step 5: `npm run build` passes cleanly. No test suite exists yet (no `npm run test` script) — add one in Phase 1.
+### Phase 0 — Stabilize
+- [x] Analysis route de-duplicated (no repeated Zustand updates / render freeze)
+- [x] Analysis runs off the main thread via a Web Worker
+- [x] Lint clean (0 errors; 6 benign react-refresh warnings), Windows CRLF-safe
+- [x] Build passes; test suites added
 
-## Phase 1 — Real AI analysis (NEXT)
+### Phase 1 — Real AI analysis
+- [x] PDF upload + text extraction (PyMuPDF)
+- [x] LLM providers wired (Gemini free tier → Ollama → deterministic fallback)
+- [x] Real backend analysis served to the frontend via `services/api.ts`
+- [x] Vitest + pytest suites and CI-friendly checks
 
-- [ ] Parse uploaded PDFs (text extraction)
-- [ ] Wire an LLM provider (free tier: Groq / Gemini / Ollama) into `backend/app/services/resume_service.py`
-- [ ] Replace frontend `analysis-generator.ts` mock with real backend analysis via `services/api.ts`
-- [ ] Add a test suite (vitest) and CI-friendly checks
-- [ ] Implement real PDF export for AI reports
+### Phase 2 — Feature completion
+- [x] Resume comparison (within analysis)
+- [x] Job Match (Gemini embeddings + ranking)
+- [x] AI interview prep (sessions + per-answer feedback)
+- [x] Resume rewriting (suggestions)
+- [x] Career roadmaps (week-by-week plans)
 
-## Phase 2 — Feature completion
+### Phase 3 — Production core
+- [x] Full auth: register/login/JWT, ownership-scoped resume routes
+- [x] Forgot / reset password (one-time token, no-account-enumeration)
+- [x] Postgres wired into `docker compose` (SQLite stays the dev/test path)
+- [x] Alembic migrations, run automatically at backend startup
+- [x] Docker stack (Postgres + backend + frontend) verified end-to-end
 
-- [ ] Resume comparison
-- [ ] Job Match (embeddings + vector search)
-- [ ] AI interview prep
-- [ ] Resume rewriting
-- [ ] Career roadmaps
+## Next
 
-## Phase 3 — Production
+### Phase 4 — Add-ons
+- [ ] Social sign-in (Google/GitHub) — currently a "coming soon" button
+- [ ] Resume versioning / history
+- [ ] Analytics (per-resume views, match rate over time)
 
-- [ ] Real auth (tokens, sessions)
-- [ ] PostgreSQL persistence + migrations
-- [ ] Deployment (Cloudflare workers / VPS)
+### Phase 5 — PortfolioAI
+- [ ] Build a shareable, on-brand personal portfolio / online-presence generator
+
+### Phase 6 — Recruiter Dashboard
+- [ ] Recruiter-facing view of candidates, resumes, and match scores
+
+### Phase 7 — Ship
+- [ ] Full QA pass (backend + frontend + e2e on the Postgres stack)
+- [ ] Deploy (backend to a container host; frontend to Cloudflare Workers or Node SSR)
+- [ ] Online presence (portfolio, GitHub, write-ups)

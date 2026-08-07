@@ -11,6 +11,4 @@ data
 .env
 .env.*
 !.env.example
-test.pdf
-dummy.pdf
 *.db
