@@ -17,7 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# SQLite on a volume (see docker-compose.yml); uploads land in ./data/uploads.
+# DATABASE_URL comes from the environment (docker compose points it at the
+# in-stack Postgres); uploads land in ./data/uploads.
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
