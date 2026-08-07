@@ -134,9 +134,22 @@ export const authService = {
     useAuthStore.getState().setSession(data.access_token, user);
     return user;
   },
-  async forgotPassword(_email: string): Promise<void> {
-    // No backend endpoint yet — the reset flow is frontend-only for now.
-    await new Promise((r) => setTimeout(r, 600));
+  async forgotPassword(email: string): Promise<string | null> {
+    // Returns the one-time reset token when the email has an account, else null.
+    // The demo surfaces the token in the response instead of emailing it.
+    const data = await request<{ reset_token: string | null }>("/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    return data.reset_token;
+  },
+  async resetPassword(email: string, token: string, newPassword: string): Promise<void> {
+    await request<{ detail: string }>("/auth/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, token, new_password: newPassword }),
+    });
   },
   logout(): void {
     useAuthStore.getState().logout();
