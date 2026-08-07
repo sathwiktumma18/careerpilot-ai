@@ -26,19 +26,22 @@ Prereqs: Docker Desktop (or a Docker daemon) and your Gemini API key.
 
    - Frontend: http://localhost:5173
    - Backend API: http://localhost:8000 (health: `GET /health`)
+   - Postgres: localhost:5432 (db/user/password all `careerpilot` — dev-only)
 
-3. **Data persistence** — the SQLite DB and uploaded PDFs live in the
-   `careerpilot-data` named volume (mounted at `/app/backend/data`). Schema is
-   created/upgraded by Alembic migrations automatically on backend startup.
-   To reset to a clean slate: `docker compose down -v`.
+3. **Data persistence** — the stack includes a `postgres` service (Postgres 16,
+   data in the `postgres-data` named volume). The backend connects to it via
+   `DATABASE_URL` and runs Alembic migrations automatically on startup, after
+   Postgres reports healthy. Uploaded PDFs still live on the backend's local
+   disk (`/app/backend/data/uploads`). To reset to a clean slate:
+   `docker compose down -v`.
 
 4. **Stop** — `docker compose down` (keeps the volume; `-v` also removes it).
 
 ## How it fits together
 
 - **Backend container** runs `uvicorn app.main:app`. At boot the app lifespan
-  runs `alembic upgrade head`, so the volume gets the current schema with no
-  manual step. Every data route requires a JWT (`Authorization: Bearer`).
+  runs `alembic upgrade head`, so the Postgres database gets the current schema
+  with no manual step. Every data route requires a JWT (`Authorization: Bearer`).
 - **Frontend container** is the same TanStack Start app built with nitro's
   `node-server` preset (the repo's default preset targets Cloudflare Workers;
   the Docker build overrides it). `VITE_API_URL` is baked in at build time to
@@ -55,7 +58,7 @@ Prereqs: Docker Desktop (or a Docker daemon) and your Gemini API key.
 | `JWT_SECRET` | in production | Signs auth tokens. **Must** be a long random string outside dev. |
 | `JWT_ALGORITHM` | no | Default `HS256`. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | no | Default `1440` (24 h). |
-| `DATABASE_URL` | no | Defaults to SQLite. Swap to Postgres in prod: `postgresql+psycopg://user:pass@host:5432/careerpilot`. |
+| `DATABASE_URL` | no | Defaults to SQLite for local dev/tests. `docker compose` overrides it with the in-stack Postgres (`postgresql+psycopg://careerpilot:careerpilot@postgres:5432/careerpilot`). Prod: same URL form pointing at a real instance with a strong password. |
 | `CORS_ORIGINS` | no | List of allowed browser origins. |
 
 Generate a secret with:
@@ -70,9 +73,11 @@ There is deliberately **no live deploy** yet (it needs accounts/services you
 don't have). When you do ship it, the shape is:
 
 - **Backend**: a container/pod running the `backend/Dockerfile` behind a load
-  balancer. Use Postgres (a managed instance or one in the compose file) and
-  set a real `JWT_SECRET`. Run `alembic upgrade head` as a deploy step before
-  the app starts (the app also runs it idempotently at boot).
+  balancer. Use Postgres (a managed instance, or the `postgres` service already
+  in `docker-compose.yml`) and set a real `JWT_SECRET` plus a strong
+  `POSTGRES_PASSWORD`/`DATABASE_URL` from environment — the compose credentials
+  are dev-only. Run `alembic upgrade head` as a deploy step before the app
+  starts (the app also runs it idempotently at boot).
 - **Frontend**: TanStack Start deploys natively to Cloudflare Workers (the
   project's configured nitro preset). Point `VITE_API_URL` at the deployed
   backend's public URL. This is lighter-weight and cheaper than a Node SSR

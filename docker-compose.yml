@@ -4,24 +4,48 @@
 #
 #   Frontend : http://localhost:5173
 #   Backend  : http://localhost:8000  (API under /api, /health for healthchecks)
+#   Postgres : localhost:5432  (careerpilot / careerpilot / careerpilot)
 #
 # The backend reads its secrets/keys from backend/.env (git-ignored) — the same
 # file used for local dev. The frontend is built with VITE_API_URL pointing at
 # the host-accessible backend, so the browser talks to it cross-origin exactly
 # like local development (CORS is already configured on the backend).
+#
+# Credentials below are dev-only. A real deploy overrides them from environment
+# (POSTGRES_PASSWORD, DATABASE_URL, JWT_SECRET, ...) — never hard-code prod
+# secrets here.
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: careerpilot
+      POSTGRES_USER: careerpilot
+      POSTGRES_PASSWORD: careerpilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careerpilot -d careerpilot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
   backend:
     build:
       context: ./backend
     env_file:
       - backend/.env
     environment:
-      # SQLite lives in /app/backend/data, which is the named volume below.
-      DATABASE_URL: sqlite:////app/backend/data/careerpilot.db
+      # The backend runs its Alembic migrations on startup, so it must wait for
+      # Postgres to be ready (see depends_on below).
+      DATABASE_URL: postgresql+psycopg://careerpilot:careerpilot@postgres:5432/careerpilot
     ports:
       - "8000:8000"
-    volumes:
-      - careerpilot-data:/app/backend/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test:
         - CMD
@@ -45,4 +69,4 @@ services:
         condition: service_healthy
 
 volumes:
-  careerpilot-data:
+  postgres-data:
