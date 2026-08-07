@@ -112,7 +112,10 @@ function ResumeHome() {
           ) : (
             <ul className="mt-4 divide-y divide-border">
               {resumes.map((r) => (
-                <li key={r.id} className="flex items-center gap-4 py-3">
+                <li
+                  key={r.id}
+                  className="flex items-center gap-4 rounded-xl px-2 py-3 transition hover:bg-card/40"
+                >
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <FileText className="h-4 w-4" />
                   </div>

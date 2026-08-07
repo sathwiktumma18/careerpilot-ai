@@ -339,3 +339,32 @@ export const useNotificationStore = create<NotificationState>()(
 export function useUnreadCount(): number {
   return useNotificationStore((s) => s.items.filter((i) => i.unread).length);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Recruiter shortlist                                                          */
+/* -------------------------------------------------------------------------- */
+
+type RecruiterState = {
+  shortlistedIds: string[];
+  toggleShortlist: (id: string) => void;
+  isShortlisted: (id: string) => boolean;
+};
+
+export const useRecruiterStore = create<RecruiterState>()(
+  persist(
+    (set, get) => ({
+      shortlistedIds: [],
+      toggleShortlist(id) {
+        set((s) => ({
+          shortlistedIds: s.shortlistedIds.includes(id)
+            ? s.shortlistedIds.filter((x) => x !== id)
+            : [...s.shortlistedIds, id],
+        }));
+      },
+      isShortlisted(id) {
+        return get().shortlistedIds.includes(id);
+      },
+    }),
+    { name: "careerpilot.recruiter", storage: createJSONStorage(() => localStorage) },
+  ),
+);

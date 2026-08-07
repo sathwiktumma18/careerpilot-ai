@@ -21,12 +21,12 @@ const navGroups = [
   {
     label: "AI Modules",
     items: [
-      { to: "/resume", label: "ResumeAI", icon: FileText, badge: "New" },
+      { to: "/resume", label: "ResumeAI", icon: FileText },
       { to: "/jobmatch", label: "JobMatch AI", icon: Briefcase },
       { to: "/interview", label: "InterviewAI", icon: MessagesSquare },
       { to: "/roadmap", label: "Career Roadmap", icon: Map },
-      { to: "/portfolio", label: "PortfolioAI", icon: Palette },
-      { to: "/recruiter", label: "Recruiter", icon: Users },
+      { to: "/portfolio", label: "PortfolioAI", icon: Palette, badge: "Live" },
+      { to: "/recruiter", label: "Recruiter", icon: Users, badge: "Live" },
     ],
   },
   {

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { FadeIn, Stagger, StaggerItem } from "@/components/common/Motion";
 import { useNotificationStore, type NotificationKind } from "@/lib/store";
 
 export const Route = createFileRoute("/notifications")({
@@ -62,30 +63,32 @@ function NotificationsPage() {
           description="New resume insights, role matches, and interview reminders will land here."
         />
       ) : (
-        <div className="glass rounded-2xl">
-          <ul className="divide-y divide-border">
+        <FadeIn>
+          <Stagger className="glass rounded-2xl overflow-hidden">
             {items.map((n) => {
               const Icon = iconFor[n.kind] ?? Bell;
               return (
-                <li key={n.id} className="flex items-start gap-4 p-4 transition hover:bg-card/40">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      {n.title}
-                      {n.unread && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                <StaggerItem key={n.id}>
+                  <div className="group flex items-start gap-4 p-4 transition hover:bg-card/40">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition group-hover:scale-110">
+                      <Icon className="h-4 w-4" />
                     </div>
-                    <div className="text-xs text-muted-foreground">{n.detail}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        {n.title}
+                        {n.unread && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{n.detail}</div>
+                    </div>
+                    <div className="whitespace-nowrap text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                    </div>
                   </div>
-                  <div className="whitespace-nowrap text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
-                  </div>
-                </li>
+                </StaggerItem>
               );
             })}
-          </ul>
-        </div>
+          </Stagger>
+        </FadeIn>
       )}
     </AppShell>
   );

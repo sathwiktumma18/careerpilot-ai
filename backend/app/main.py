@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config.settings import settings
 from app.database.migrate import run_migrations
-from app.routes import auth, dashboard, interview, job_match, oauth, profile, resume, roadmap
+from app.routes import auth, dashboard, interview, job_match, oauth, portfolio, profile, resume, roadmap
 
 
 @asynccontextmanager
@@ -33,6 +33,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth.router)
     app.include_router(oauth.router)
+    app.include_router(portfolio.router)
     app.include_router(resume.router)
     app.include_router(profile.router)
     app.include_router(dashboard.router)

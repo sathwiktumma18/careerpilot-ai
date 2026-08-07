@@ -23,6 +23,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResumeIndexRouteImport } from './routes/resume.index'
 import { Route as AuthIndexRouteImport } from './routes/auth.index'
 import { Route as ResumeUploadRouteImport } from './routes/resume.upload'
+import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
 import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
@@ -100,6 +101,11 @@ const ResumeUploadRoute = ResumeUploadRouteImport.update({
   path: '/resume/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PSlugRoute = PSlugRouteImport.update({
+  id: '/p/$slug',
+  path: '/p/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthSignupRoute = AuthSignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -146,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/p/$slug': typeof PSlugRoute
   '/resume/upload': typeof ResumeUploadRoute
   '/auth/': typeof AuthIndexRoute
   '/resume/': typeof ResumeIndexRoute
@@ -167,6 +174,7 @@ export interface FileRoutesByTo {
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/p/$slug': typeof PSlugRoute
   '/resume/upload': typeof ResumeUploadRoute
   '/auth': typeof AuthIndexRoute
   '/resume': typeof ResumeIndexRoute
@@ -190,6 +198,7 @@ export interface FileRoutesById {
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/p/$slug': typeof PSlugRoute
   '/resume/upload': typeof ResumeUploadRoute
   '/auth/': typeof AuthIndexRoute
   '/resume/': typeof ResumeIndexRoute
@@ -214,6 +223,7 @@ export interface FileRouteTypes {
     | '/auth/forgot'
     | '/auth/login'
     | '/auth/signup'
+    | '/p/$slug'
     | '/resume/upload'
     | '/auth/'
     | '/resume/'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/auth/forgot'
     | '/auth/login'
     | '/auth/signup'
+    | '/p/$slug'
     | '/resume/upload'
     | '/auth'
     | '/resume'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/auth/forgot'
     | '/auth/login'
     | '/auth/signup'
+    | '/p/$slug'
     | '/resume/upload'
     | '/auth/'
     | '/resume/'
@@ -277,6 +289,7 @@ export interface RootRouteChildren {
   RecruiterRoute: typeof RecruiterRoute
   RoadmapRoute: typeof RoadmapRoute
   SettingsRoute: typeof SettingsRoute
+  PSlugRoute: typeof PSlugRoute
   ResumeUploadRoute: typeof ResumeUploadRoute
   ResumeIndexRoute: typeof ResumeIndexRoute
   ResumeAnalysisIdRoute: typeof ResumeAnalysisIdRoute
@@ -383,6 +396,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResumeUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p/$slug': {
+      id: '/p/$slug'
+      path: '/p/$slug'
+      fullPath: '/p/$slug'
+      preLoaderRoute: typeof PSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/signup': {
       id: '/auth/signup'
       path: '/signup'
@@ -458,6 +478,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecruiterRoute: RecruiterRoute,
   RoadmapRoute: RoadmapRoute,
   SettingsRoute: SettingsRoute,
+  PSlugRoute: PSlugRoute,
   ResumeUploadRoute: ResumeUploadRoute,
   ResumeIndexRoute: ResumeIndexRoute,
   ResumeAnalysisIdRoute: ResumeAnalysisIdRoute,

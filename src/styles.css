@@ -98,16 +98,27 @@
   --sidebar-border: oklch(1 0 0 / 6%);
   --sidebar-ring: oklch(0.65 0.19 258);
 
-  /* Design tokens */
-  --gradient-primary: linear-gradient(135deg, oklch(0.65 0.19 258), oklch(0.62 0.22 300));
-  --gradient-hero: linear-gradient(135deg, oklch(0.65 0.19 258 / 0.9), oklch(0.62 0.22 300 / 0.9));
+  /* Design tokens. Accent hue drives every gradient + glow, so the portfolio
+     accent switcher retints the whole UI; the semantic --primary/-ring stay
+     fixed as a readability anchor. */
+  --accent-hue: 258;
+  --gradient-primary: linear-gradient(
+    135deg,
+    oklch(0.65 0.19 var(--accent-hue)),
+    oklch(0.62 0.22 300)
+  );
+  --gradient-hero: linear-gradient(
+    135deg,
+    oklch(0.65 0.19 var(--accent-hue) / 0.9),
+    oklch(0.62 0.22 300 / 0.9)
+  );
   --gradient-subtle: linear-gradient(180deg, oklch(0.2 0.025 265), oklch(0.16 0.02 265));
   --gradient-glow: radial-gradient(
     600px circle at 50% 0%,
-    oklch(0.65 0.19 258 / 0.15),
+    oklch(0.65 0.19 var(--accent-hue) / 0.15),
     transparent 60%
   );
-  --shadow-glow: 0 0 40px oklch(0.65 0.19 258 / 0.25);
+  --shadow-glow: 0 0 40px oklch(0.65 0.19 var(--accent-hue) / 0.25);
   --shadow-elegant: 0 10px 40px -10px oklch(0 0 0 / 0.5);
   --glass-bg: oklch(1 0 0 / 0.04);
   --glass-border: oklch(1 0 0 / 0.08);
@@ -156,6 +167,50 @@
     linear-gradient(var(--card), var(--card)) padding-box,
     var(--gradient-primary) border-box;
   border: 1px solid transparent;
+}
+
+/* Premium micro-interactions: a card lifts gently on hover. */
+@utility hover-lift {
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease,
+    border-color 0.2s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-elegant);
+  }
+}
+
+/* Gradient-framed card with a soft drop shadow — premium "hero" surfaces. */
+@utility glow-card {
+  position: relative;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    var(--gradient-primary) border-box;
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-elegant);
+}
+
+/* Shimmer sweep, used for loading skeletons and premium highlights. */
+@utility shimmer {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    oklch(1 0 0 / 0.06) 50%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 2.5s ease-in-out infinite;
+}
+
+@keyframes shimmer-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
 }
 
 /* Scrollbar polish */

@@ -35,6 +35,12 @@ import {
 import type { Difficulty, InterviewFeedback, InterviewSession } from "@/lib/interview";
 import { mapRoadmapFromApi, type ApiRoadmapPlan } from "@/lib/roadmap-mapper";
 import type { RoadmapPlan } from "@/lib/roadmap";
+import {
+  mapPortfolioFromApi,
+  type ApiMyPortfolio,
+  type ApiPortfolio,
+} from "@/lib/portfolio-mapper";
+import type { PortfolioProfile } from "@/lib/portfolio";
 
 export const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
@@ -560,6 +566,20 @@ export const jobMatchService = {
   },
 };
 
+/* -------------------------------- Portfolio -------------------------------- */
+
+export const portfolioService = {
+  /** Fetch a public portfolio by slug — no auth required (shareable page). */
+  async getPublic(slug: string): Promise<PortfolioProfile> {
+    const raw = await request<ApiPortfolio>(`/public/portfolio/${slug}`);
+    return mapPortfolioFromApi(raw);
+  },
+  /** The current user's public path (slug + /p/...). */
+  async getMe(): Promise<ApiMyPortfolio> {
+    return request<ApiMyPortfolio>("/portfolio/me");
+  },
+};
+
 export const api = {
   authService,
   resumeService,
@@ -570,4 +590,5 @@ export const api = {
   jobMatchService,
   interviewService,
   roadmapService,
+  portfolioService,
 };

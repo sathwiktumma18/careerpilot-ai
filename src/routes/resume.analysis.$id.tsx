@@ -27,6 +27,7 @@ import {
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { Gauge } from "@/components/common/Gauge";
 import { useResumeStore } from "@/lib/store";
 import { type Analysis } from "@/lib/analysis";
 import { exportAnalysisReport } from "@/lib/report-export";
@@ -198,11 +199,9 @@ function AnalysisPage() {
             <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               ATS score
             </div>
-            <div className="mt-4 flex items-end gap-3">
-              <div className="text-6xl font-semibold gradient-text">{a.atsScore}</div>
-              <div className="pb-2 text-sm text-muted-foreground">/ 100</div>
+            <div className="mt-2 flex justify-center">
+              <Gauge score={a.atsScore} size={148} sublabel="overall fit" />
             </div>
-            <ScoreRing score={a.atsScore} />
             <div className="mt-4 space-y-2">
               {a.scoreBreakdown.map((b) => (
                 <div key={b.label}>
@@ -413,34 +412,5 @@ function AnalysisPage() {
         </motion.div>
       </div>
     </AppShell>
-  );
-}
-
-function ScoreRing({ score }: { score: number }) {
-  const c = 2 * Math.PI * 42;
-  const offset = c - (score / 100) * c;
-  return (
-    <svg viewBox="0 0 100 100" className="mx-auto mt-4 h-32 w-32 -rotate-90">
-      <defs>
-        <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="oklch(0.65 0.19 258)" />
-          <stop offset="100%" stopColor="oklch(0.62 0.22 300)" />
-        </linearGradient>
-      </defs>
-      <circle cx="50" cy="50" r="42" fill="none" stroke="oklch(1 0 0 / 0.08)" strokeWidth="8" />
-      <motion.circle
-        cx="50"
-        cy="50"
-        r="42"
-        fill="none"
-        stroke="url(#ring)"
-        strokeWidth="8"
-        strokeLinecap="round"
-        strokeDasharray={c}
-        initial={{ strokeDashoffset: c }}
-        animate={{ strokeDashoffset: offset }}
-        transition={{ duration: 1.2, ease: "easeOut" }}
-      />
-    </svg>
   );
 }
