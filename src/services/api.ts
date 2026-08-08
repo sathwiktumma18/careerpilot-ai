@@ -14,6 +14,7 @@ import {
   type ResumeVersionLite,
   type Settings,
   type User,
+  type UserRole,
   type NotificationItem,
 } from "@/lib/store";
 import type { Analysis } from "@/lib/analysis";
@@ -49,6 +50,7 @@ interface ApiUser {
   id: string;
   email: string;
   name: string;
+  role?: UserRole;
 }
 
 interface ApiAuthResponse {
@@ -65,13 +67,14 @@ const initials = (name: string) =>
     .map((p) => p[0]!.toUpperCase())
     .join("") || "U";
 
-/** Map the backend user ({id,email,name}) onto the richer client profile. */
+/** Map the backend user ({id,email,name,role}) onto the richer client profile. */
 function mapUserFromApi(apiUser: ApiUser): User {
   return {
     id: apiUser.id,
     name: apiUser.name,
     email: apiUser.email,
     avatarInitials: initials(apiUser.name),
+    role: apiUser.role ?? "job_seeker",
     plan: "Free", // backend has no billing model yet
     title: "",
     location: "",
@@ -162,11 +165,16 @@ export const authService = {
     useAuthStore.getState().setSession(data.access_token, user);
     return user;
   },
-  async signup(name: string, email: string, password: string): Promise<User> {
+  async signup(
+    name: string,
+    email: string,
+    password: string,
+    role: UserRole = "job_seeker",
+  ): Promise<User> {
     const data = await request<ApiAuthResponse>("/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, role }),
     });
     const user = mapUserFromApi(data.user);
     useAuthStore.getState().setSession(data.access_token, user);
@@ -238,6 +246,21 @@ export const resumeService = {
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const data = JSON.parse(xhr.responseText) as { id: string; file_name: string };
+            // Put the new resume in the store immediately, so a follow-up
+            // analyze() can find it. Without this, updateResumeAnalysis() is a
+            // no-op and analyze() throws "Resume not found after analysis".
+            useResumeStore.getState().upsert({
+              id: data.id,
+              title: data.file_name,
+              fileName: data.file_name,
+              sizeKb: Math.round(file.size / 1024),
+              uploadedAt: new Date().toISOString(),
+              analysis: emptyAnalysis(data.id, data.file_name),
+              versions: [],
+              versionCount: 1,
+              viewCount: 0,
+              firstAts: null,
+            });
             resolve({ id: data.id, fileName: data.file_name });
           } catch {
             reject(new Error("Invalid upload response"));
@@ -261,7 +284,24 @@ export const resumeService = {
       kind: "resume",
     });
     const record = useResumeStore.getState().getResume(id);
-    if (!record) throw new Error("Resume not found after analysis");
+    if (!record) {
+      // The upload page adds the record on upload, but analyze() can also be
+      // reached with the store empty (e.g. a stale localStorage snapshot).
+      // Build the record from the fresh analysis instead of failing the call.
+      useResumeStore.getState().upsert({
+        id: analysis.id,
+        title: analysis.fileName,
+        fileName: analysis.fileName,
+        sizeKb: 0,
+        uploadedAt: analysis.uploadedAt,
+        analysis,
+        versions: [],
+        versionCount: 1,
+        viewCount: 0,
+        firstAts: analysis.atsScore,
+      });
+      return useResumeStore.getState().getResume(id)!;
+    }
     return record;
   },
 

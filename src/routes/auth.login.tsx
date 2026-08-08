@@ -125,7 +125,7 @@ function LoginPage() {
             <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
             <input
               type="email"
-              placeholder="you@company.com"
+              placeholder="you@example.com"
               autoComplete="email"
               {...register("email")}
               className="h-10 w-full rounded-lg border border-input bg-card/50 px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"

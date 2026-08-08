@@ -7,6 +7,7 @@ from app.schemas.job_match import JobLite, JobMatchRequest, JobMatchResponse
 from app.services.auth_service import get_current_user
 from app.services.job_match_service import JobMatchError, list_jobs, match_resume
 from app.services.resume_service import ResumeNotFoundError
+from app.services.seeker_service import record_activity
 
 router = APIRouter(prefix="/api", tags=["job-match"])
 
@@ -31,6 +32,16 @@ async def match_endpoint(
         raise HTTPException(status_code=404, detail="Resume not found") from exc
     except JobMatchError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    # Recruiter pool: this seeker is actively hunting — record it (role =
+    # their resume's headline role for now; a dedicated target role field is
+    # added with the JD-based analysis phase).
+    record_activity(
+        db,
+        user_id=user.id,
+        activity_type="job_searched",
+        role=data.get("resume_title") or "Job search",
+        detail="Job match",
+    )
     return JobMatchResponse.model_validate(data)
 
 

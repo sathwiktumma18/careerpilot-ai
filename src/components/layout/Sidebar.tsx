@@ -7,13 +7,14 @@ import {
   MessagesSquare,
   Map,
   Palette,
-  Users,
   Settings,
   Sparkles,
 } from "lucide-react";
+import { useAuthStore, type UserRole } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
-const navGroups = [
+/** Job seekers see the full AI suite. */
+const seekerNav = [
   {
     label: "Overview",
     items: [{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
@@ -26,7 +27,6 @@ const navGroups = [
       { to: "/interview", label: "InterviewAI", icon: MessagesSquare },
       { to: "/roadmap", label: "Career Roadmap", icon: Map },
       { to: "/portfolio", label: "PortfolioAI", icon: Palette, badge: "Live" },
-      { to: "/recruiter", label: "Recruiter", icon: Users, badge: "Live" },
     ],
   },
   {
@@ -35,7 +35,31 @@ const navGroups = [
   },
 ];
 
+/** Recruiters don't analyze resumes/interviews — they get a candidate dashboard,
+ * their own portfolio, and messaging. (Messaging + candidates arrive with the
+ * inbox feature; the dashboard becomes role-aware in the recruiter phase.) */
+const recruiterNav = [
+  {
+    label: "Overview",
+    items: [{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
+  },
+  {
+    label: "AI Modules",
+    items: [{ to: "/portfolio", label: "PortfolioAI", icon: Palette, badge: "Live" }],
+  },
+  {
+    label: "Account",
+    items: [{ to: "/settings", label: "Settings", icon: Settings }],
+  },
+];
+
+function buildNav(role: UserRole): typeof seekerNav {
+  return role === "recruiter" ? recruiterNav : seekerNav;
+}
+
 export function Sidebar() {
+  const role = useAuthStore((s) => s.user?.role ?? "job_seeker");
+  const navGroups = buildNav(role);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   return (
@@ -99,10 +123,12 @@ export function Sidebar() {
       <div className="m-3 rounded-xl p-4 glass">
         <div className="flex items-center gap-2 text-xs font-medium">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
-          Pro plan
+          {role === "recruiter" ? "Recruiter plan" : "Pro plan"}
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Unlimited analyses, priority AI models, and recruiter insights.
+          {role === "recruiter"
+            ? "Candidate analytics, messaging, and your public recruiter profile."
+            : "Unlimited analyses, priority AI models, and recruiter insights."}
         </p>
         <button className="mt-3 w-full rounded-md bg-[image:var(--gradient-primary)] px-3 py-1.5 text-xs font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90">
           Manage plan

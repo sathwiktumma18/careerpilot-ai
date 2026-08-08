@@ -77,8 +77,9 @@ function UploadPage() {
       navigate({ to: "/resume/analysis/$id", params: { id } });
     } catch (e) {
       setPhase("idle");
-      setError("Analysis failed. Please try again.");
-      toast.error("Analysis failed");
+      const message = e instanceof Error ? e.message : "Analysis failed. Please try again.";
+      setError(message);
+      toast.error(message);
     }
   }
 

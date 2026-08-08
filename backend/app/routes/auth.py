@@ -32,7 +32,13 @@ def register(
     payload: RegisterRequest, db: Session = Depends(get_db)
 ) -> AuthResponse:
     try:
-        user = register_user(db, name=payload.name, email=payload.email, password=payload.password)
+        user = register_user(
+            db,
+            name=payload.name,
+            email=payload.email,
+            password=payload.password,
+            role=payload.role,
+        )
     except EmailTakenError:
         raise HTTPException(status_code=409, detail="An account with this email already exists")
     return to_auth_response(user)
@@ -49,7 +55,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> UserOut:
-    return UserOut(id=user.id, email=user.email, name=user.name)
+    return UserOut(id=user.id, email=user.email, name=user.name, role=user.role)
 
 
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)

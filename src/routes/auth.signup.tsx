@@ -1,12 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Sparkles, Loader2, Github, Mail } from "lucide-react";
+import { Sparkles, Loader2, Github, Mail, Briefcase, UserRound } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { authService } from "@/services/api";
+import type { UserRole } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/auth/signup")({
   head: () => ({ meta: [{ title: "Create account — CareerPilot AI" }] }),
@@ -21,8 +23,24 @@ const schema = z.object({
 
 type OAuthProvider = "google" | "github";
 
+const ROLES: { value: UserRole; label: string; blurb: string; icon: typeof Briefcase }[] = [
+  {
+    value: "job_seeker",
+    label: "Job Seeker",
+    blurb: "Resume analysis, job matching, interviews & roadmap",
+    icon: UserRound,
+  },
+  {
+    value: "recruiter",
+    label: "Recruiter",
+    blurb: "Candidate pool, messaging & your own portfolio",
+    icon: Briefcase,
+  },
+];
+
 function SignupPage() {
   const navigate = useNavigate();
+  const [role, setRole] = useState<UserRole>("job_seeker");
   const [oauthBusy, setOauthBusy] = useState<OAuthProvider | null>(null);
   const {
     register,
@@ -32,8 +50,8 @@ function SignupPage() {
 
   async function onSubmit(values: z.infer<typeof schema>) {
     try {
-      await authService.signup(values.name, values.email, values.password);
-      toast.success("Account created");
+      await authService.signup(values.name, values.email, values.password, role);
+      toast.success(role === "recruiter" ? "Recruiter account created" : "Account created");
       navigate({ to: "/dashboard" });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not create account");
@@ -78,7 +96,33 @@ function SignupPage() {
         </div>
 
         <h1 className="text-2xl font-semibold tracking-tight">Create your account</h1>
-        <p className="mt-1 text-sm text-muted-foreground">14-day trial. No credit card required.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Your AI career copilot — free to get started.
+        </p>
+
+        {/* Role picker — a job seeker gets the full product; a recruiter gets a
+            candidate dashboard + messaging instead. */}
+        <div className="mt-6 grid grid-cols-2 gap-2">
+          {ROLES.map(({ value, label, blurb, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setRole(value)}
+              className={cn(
+                "rounded-xl border p-3 text-left transition",
+                role === value
+                  ? "border-primary bg-primary/10 ring-2 ring-primary/20"
+                  : "border-border bg-card/40 hover:border-primary/40",
+              )}
+            >
+              <Icon
+                className={cn("h-4 w-4", role === value ? "text-primary" : "text-muted-foreground")}
+              />
+              <div className="mt-2 text-sm font-medium">{label}</div>
+              <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{blurb}</div>
+            </button>
+          ))}
+        </div>
 
         <div className="mt-6 grid grid-cols-2 gap-2">
           <button
@@ -119,7 +163,7 @@ function SignupPage() {
             <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Name</label>
             <input
               type="text"
-              placeholder="Alex Morgan"
+              placeholder="Your full name"
               autoComplete="name"
               {...register("name")}
               className="h-10 w-full rounded-lg border border-input bg-card/50 px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
@@ -130,7 +174,7 @@ function SignupPage() {
             <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
             <input
               type="email"
-              placeholder="you@company.com"
+              placeholder="you@example.com"
               autoComplete="email"
               {...register("email")}
               className="h-10 w-full rounded-lg border border-input bg-card/50 px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"

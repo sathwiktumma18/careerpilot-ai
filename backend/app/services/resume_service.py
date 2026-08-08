@@ -187,6 +187,18 @@ class ResumeService:
         version.status = "analyzed"
         version.analyzed_at = datetime.now(timezone.utc)
         db.commit()
+        # Surface this seeker in the recruiter candidate pool. Imported here
+        # (not at module top) to avoid a circular import chain:
+        # resume_service → seeker_service → portfolio_service → resume_service.
+        from app.services.seeker_service import record_activity, role_from_analysis
+
+        record_activity(
+            db,
+            user_id=user_id,
+            activity_type="resume_analyzed",
+            role=role_from_analysis(analysis.model_dump(mode="json")),
+            detail=resume.title,
+        )
         return analysis
 
     def _resolve_version(self, resume: Resume, version_no: int | None) -> ResumeVersion:

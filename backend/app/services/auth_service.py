@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.config.settings import settings
 from app.database.session import get_db
-from app.models.user import User
+from app.models.user import ROLE_RECRUITER, User
 from app.schemas.auth import AuthResponse, UserOut
 
 
@@ -59,11 +59,18 @@ def decode_token(token: str) -> str | None:
         return None
 
 
-def register_user(db: Session, *, name: str, email: str, password: str) -> User:
+def register_user(
+    db: Session, *, name: str, email: str, password: str, role: str = "job_seeker"
+) -> User:
     email = email.lower()
     if db.scalar(select(User).where(User.email == email)):
         raise EmailTakenError(email)
-    user = User(email=email, name=name.strip(), password_hash=hash_password(password))
+    user = User(
+        email=email,
+        name=name.strip(),
+        password_hash=hash_password(password),
+        role=role,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -80,7 +87,7 @@ def authenticate_user(db: Session, *, email: str, password: str) -> User:
 def to_auth_response(user: User) -> AuthResponse:
     return AuthResponse(
         access_token=create_access_token(user.id),
-        user=UserOut(id=user.id, email=user.email, name=user.name),
+        user=UserOut(id=user.id, email=user.email, name=user.name, role=user.role),
     )
 
 
@@ -157,4 +164,11 @@ def get_current_user(
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+def get_current_recruiter(user: User = Depends(get_current_user)) -> User:
+    """Dependency for recruiter-only routes (candidate dashboard, etc.)."""
+    if user.role != ROLE_RECRUITER:
+        raise HTTPException(status_code=403, detail="Recruiter access required")
     return user

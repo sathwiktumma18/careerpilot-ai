@@ -11,6 +11,13 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# Account roles. Job seekers get the full product; recruiters get a candidate
+# dashboard, their own portfolio, and messaging — no resume/interview/roadmap.
+ROLE_JOB_SEEKER = "job_seeker"
+ROLE_RECRUITER = "recruiter"
+ROLES = (ROLE_JOB_SEEKER, ROLE_RECRUITER)
+
+
 class User(Base):
     __tablename__ = "users"
     # Social sign-in matches on (provider, provider_sub); password users have
@@ -24,6 +31,8 @@ class User(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid4()))
     email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
+    # "job_seeker" | "recruiter" — see ROLE_* constants above.
+    role: Mapped[str] = mapped_column(String, default=ROLE_JOB_SEEKER, nullable=False)
     # bcrypt hash — never store plaintext passwords. Social accounts get a random
     # hash so password login always fails for them (they sign in via OAuth only).
     password_hash: Mapped[str] = mapped_column(String, nullable=False)

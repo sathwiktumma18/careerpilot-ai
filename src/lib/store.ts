@@ -12,11 +12,17 @@ import { emptyAnalysis, type Analysis } from "./analysis";
 /* Auth                                                                       */
 /* -------------------------------------------------------------------------- */
 
+export type UserRole = "job_seeker" | "recruiter";
+
 export type User = {
   id: string;
   name: string;
   email: string;
   avatarInitials: string;
+  /** Account type — job seekers get the full product, recruiters get a
+   * candidate dashboard + messaging. Persisted users without a role are job
+   * seekers (every pre-roles account was one). */
+  role: UserRole;
   plan: "Free" | "Pro" | "Enterprise";
   title: string;
   location: string;
@@ -68,6 +74,13 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "careerpilot.auth",
       storage: createJSONStorage(() => localStorage),
+      merge: (persisted, current) => {
+        const state = { ...current, ...(persisted as Partial<AuthState>) };
+        // Sessions persisted before roles existed carry no `role` — they were
+        // all job seekers, so default them rather than leaving `undefined`.
+        if (state.user) state.user = { ...state.user, role: state.user.role ?? "job_seeker" };
+        return state;
+      },
       // A user persisted before the token existed (or with a cleared token) has
       // no valid session — treat it as logged out rather than letting the UI in
       // with an authentication header it can't produce.
@@ -211,7 +224,34 @@ export const useResumeStore = create<ResumeState>()(
         return get().resumes.find((r) => r.id === id);
       },
     }),
-    { name: "careerpilot.resumes", storage: createJSONStorage(() => localStorage) },
+    {
+      name: "careerpilot.resumes",
+      storage: createJSONStorage(() => localStorage),
+      // Older app versions persisted ResumeRecords before resume versioning
+      // existed — those snapshots can lack `versions` (and sometimes `analysis`).
+      // Normalize on rehydrate so every page can rely on the current shape.
+      merge: (persisted, current) => {
+        const state: ResumeState = {
+          ...current,
+          ...(persisted as Partial<ResumeState>),
+        };
+        state.resumes = (state.resumes ?? []).map((r) => {
+          const fileName = r.fileName ?? r.title ?? "resume.pdf";
+          return {
+            ...r,
+            title: r.title ?? fileName,
+            fileName,
+            versionCount: r.versionCount ?? 1,
+            viewCount: r.viewCount ?? 0,
+            firstAts: r.firstAts ?? null,
+            sizeKb: r.sizeKb ?? 0,
+            analysis: r.analysis ?? emptyAnalysis(r.id, fileName),
+            versions: r.versions ?? [],
+          };
+        });
+        return state;
+      },
+    },
   ),
 );
 

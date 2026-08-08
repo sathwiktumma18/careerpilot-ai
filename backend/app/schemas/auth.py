@@ -1,10 +1,15 @@
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field
+
+Role = Literal["job_seeker", "recruiter"]
 
 
 class RegisterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+    role: Role = "job_seeker"
 
 
 class LoginRequest(BaseModel):
@@ -32,6 +37,7 @@ class UserOut(BaseModel):
     id: str
     email: EmailStr
     name: str
+    role: Role = "job_seeker"
 
 
 class AuthResponse(BaseModel):
