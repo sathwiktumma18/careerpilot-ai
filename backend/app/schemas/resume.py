@@ -76,7 +76,12 @@ class Candidate(BaseModel):
 
 
 class AnalysisResponse(BaseModel):
-    """Full analysis — mirrors the frontend `Analysis` type (snake_case on the wire)."""
+    """Full analysis — mirrors the frontend `Analysis` type (snake_case on the wire).
+
+    `analysis_mode` distinguishes the general benchmark from a JD-specific one:
+    "jd" analyses are scored against a pasted job description / target role and
+    are transient (they never overwrite the stored general baseline).
+    """
 
     id: str
     file_name: str
@@ -91,6 +96,8 @@ class AnalysisResponse(BaseModel):
     recommended_roles: list[RoleMatch]
     keyword_trend: list[TrendPoint]
     skills_radar: list[RadarPoint]
+    analysis_mode: Literal["general", "jd"] = "general"
+    target_role: str | None = None
 
 
 class ResumeListItem(BaseModel):

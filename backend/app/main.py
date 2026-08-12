@@ -10,6 +10,7 @@ from app.routes import (
     dashboard,
     interview,
     job_match,
+    messages,
     oauth,
     portfolio,
     profile,
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(profile.router)
     app.include_router(dashboard.router)
     app.include_router(recruiter.router)
+    app.include_router(messages.router)
     app.include_router(job_match.router)
     app.include_router(interview.router)
     app.include_router(roadmap.router)

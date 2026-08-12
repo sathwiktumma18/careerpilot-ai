@@ -25,6 +25,8 @@ export interface ApiAnalysis {
   recommended_roles: { role: string; company: string; location: string; match: number }[];
   keyword_trend: { month: string; score: number }[];
   skills_radar: { area: string; value: number }[];
+  analysis_mode?: "general" | "jd";
+  target_role?: string | null;
 }
 
 export function mapAnalysisFromApi(raw: ApiAnalysis): Analysis {
@@ -48,5 +50,7 @@ export function mapAnalysisFromApi(raw: ApiAnalysis): Analysis {
     recommendedRoles: raw.recommended_roles ?? [],
     keywordTrend: raw.keyword_trend ?? [],
     skillsRadar: raw.skills_radar ?? [],
+    analysisMode: raw.analysis_mode ?? "general",
+    targetRole: raw.target_role ?? null,
   };
 }

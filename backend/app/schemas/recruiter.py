@@ -21,6 +21,10 @@ class CandidateSummary(BaseModel):
 class CandidateDetail(CandidateSummary):
     summary: str = ""
     skills: list[str] = []
+    # The existing thread between this candidate and the requesting recruiter,
+    # or None if they haven't messaged yet. Lets the profile drawer deep-link
+    # straight into the conversation.
+    conversation_id: str | None = None
 
 
 class RecruiterLite(BaseModel):

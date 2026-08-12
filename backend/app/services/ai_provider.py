@@ -138,7 +138,28 @@ _ANALYSIS_SCHEMA_EXAMPLE = {
 }
 
 
-def _analysis_prompt(file_name: str, text: str) -> str:
+def _analysis_prompt(
+    file_name: str,
+    text: str,
+    *,
+    job_description: str | None = None,
+    target_role: str | None = None,
+) -> str:
+    jd_section = ""
+    jd_note = ""
+    if job_description or target_role:
+        jd_note = (
+            "This is a JD-SPECIFIC analysis: ats_score must measure the resume's "
+            "fit for the posted job, missing_skills must be skills the JOB asks "
+            "for that the resume lacks, and suggestions must target closing the "
+            "gap with this posting. Score against the JD, not a generic role.\n"
+        )
+        jd_section = f"""JOB DESCRIPTION (score the resume against THIS):
+{job_description[:10000] if job_description else "(no pasted JD — use the target role's typical requirements)"}
+
+TARGET ROLE: {target_role or "N/A"}
+"""
+
     return f"""You are a meticulous senior resume reviewer and ATS specialist.
 
 Analyze the resume below and return ONLY valid JSON matching this EXACT schema.
@@ -150,7 +171,7 @@ SCHEMA (all keys required):
 CONSTRAINTS:
 - ats_score and all scores/levels/matches are integers 0-100.
 - detected_skills: skills actually evidenced in the text (max 14), level = strength.
-- missing_skills: 4-6 skills NOT in the resume that the target senior role needs; importance is High|Medium|Low.
+- missing_skills: skills NOT in the resume that the role needs; importance is High|Medium|Low.
 - suggestions: 3-5 specific, actionable items; severity is high|medium|low.
 - recommended_roles: 4 roles with a match score grounded in the resume's skill mix.
 - keyword_trend: exactly 6 points, months Jan..Jun, a plausible score progression.
@@ -158,6 +179,7 @@ CONSTRAINTS:
 - candidate: derive name/email from the text if present, else "".
 - Do not invent experience, skills, or companies.
 
+{jd_note}{jd_section}
 Resume file name: {file_name}
 
 RESUME TEXT:
@@ -165,13 +187,37 @@ RESUME TEXT:
 """
 
 
-async def analyze_resume(resume_id: str, file_name: str, text: str) -> AnalysisResponse:
+async def analyze_resume(
+    resume_id: str,
+    file_name: str,
+    text: str,
+    *,
+    job_description: str | None = None,
+    target_role: str | None = None,
+) -> AnalysisResponse:
     """Run the provider chain and return a schema-validated analysis.
 
-    Never raises for provider issues: worst case it falls back to the
-    deterministic analyzer so the user always gets a result.
+    Pass `job_description` / `target_role` to score the resume against a
+    specific posting instead of a generic benchmark. Never raises for provider
+    issues: worst case it falls back to the deterministic analyzer so the user
+    always gets a result.
     """
-    prompt = _analysis_prompt(file_name, text)
+    prompt = _analysis_prompt(
+        file_name, text, job_description=job_description, target_role=target_role
+    )
+    try:
+        raw = await generate_text(prompt, json_mode=True, temperature=0.2)
+        data = _extract_json(raw)
+        # id/file_name are server-owned: never trust the model's copy (it may
+        # invent an id like "res_..." instead of the real resume id).
+        data["id"] = resume_id
+        data["file_name"] = file_name
+        return AnalysisResponse.model_validate(data)
+    except (ProviderError, json.JSONDecodeError, ValueError) as exc:
+        logger.warning("LLM analysis failed (%s); using fallback analyzer", exc)
+        return fallback_analyzer.analyze_resume(
+            resume_id, file_name, text, job_description=job_description, target_role=target_role
+        )
     try:
         raw = await generate_text(prompt, json_mode=True, temperature=0.2)
         data = _extract_json(raw)

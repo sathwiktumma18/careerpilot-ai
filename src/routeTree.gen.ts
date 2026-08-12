@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
+import { Route as RecruitersRouteImport } from './routes/recruiters'
 import { Route as RecruiterRouteImport } from './routes/recruiter'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
@@ -21,9 +22,11 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResumeIndexRouteImport } from './routes/resume.index'
+import { Route as MessagesIndexRouteImport } from './routes/messages.index'
 import { Route as AuthIndexRouteImport } from './routes/auth.index'
 import { Route as ResumeUploadRouteImport } from './routes/resume.upload'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
+import { Route as MessagesIdRouteImport } from './routes/messages.$id'
 import { Route as AuthSignupRouteImport } from './routes/auth.signup'
 import { Route as AuthLoginRouteImport } from './routes/auth.login'
 import { Route as AuthForgotRouteImport } from './routes/auth.forgot'
@@ -39,6 +42,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const RoadmapRoute = RoadmapRouteImport.update({
   id: '/roadmap',
   path: '/roadmap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecruitersRoute = RecruitersRouteImport.update({
+  id: '/recruiters',
+  path: '/recruiters',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecruiterRoute = RecruiterRouteImport.update({
@@ -91,6 +99,11 @@ const ResumeIndexRoute = ResumeIndexRouteImport.update({
   path: '/resume/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MessagesIndexRoute = MessagesIndexRouteImport.update({
+  id: '/messages/',
+  path: '/messages/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthIndexRoute = AuthIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -104,6 +117,11 @@ const ResumeUploadRoute = ResumeUploadRouteImport.update({
 const PSlugRoute = PSlugRouteImport.update({
   id: '/p/$slug',
   path: '/p/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagesIdRoute = MessagesIdRouteImport.update({
+  id: '/messages/$id',
+  path: '/messages/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthSignupRoute = AuthSignupRouteImport.update({
@@ -147,14 +165,17 @@ export interface FileRoutesByFullPath {
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
   '/recruiter': typeof RecruiterRoute
+  '/recruiters': typeof RecruitersRoute
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/messages/$id': typeof MessagesIdRoute
   '/p/$slug': typeof PSlugRoute
   '/resume/upload': typeof ResumeUploadRoute
   '/auth/': typeof AuthIndexRoute
+  '/messages/': typeof MessagesIndexRoute
   '/resume/': typeof ResumeIndexRoute
   '/auth/oauth/callback': typeof AuthOauthCallbackRoute
   '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
@@ -169,14 +190,17 @@ export interface FileRoutesByTo {
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
   '/recruiter': typeof RecruiterRoute
+  '/recruiters': typeof RecruitersRoute
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/messages/$id': typeof MessagesIdRoute
   '/p/$slug': typeof PSlugRoute
   '/resume/upload': typeof ResumeUploadRoute
   '/auth': typeof AuthIndexRoute
+  '/messages': typeof MessagesIndexRoute
   '/resume': typeof ResumeIndexRoute
   '/auth/oauth/callback': typeof AuthOauthCallbackRoute
   '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
@@ -193,14 +217,17 @@ export interface FileRoutesById {
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
   '/recruiter': typeof RecruiterRoute
+  '/recruiters': typeof RecruitersRoute
   '/roadmap': typeof RoadmapRoute
   '/settings': typeof SettingsRoute
   '/auth/forgot': typeof AuthForgotRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
+  '/messages/$id': typeof MessagesIdRoute
   '/p/$slug': typeof PSlugRoute
   '/resume/upload': typeof ResumeUploadRoute
   '/auth/': typeof AuthIndexRoute
+  '/messages/': typeof MessagesIndexRoute
   '/resume/': typeof ResumeIndexRoute
   '/auth/oauth/callback': typeof AuthOauthCallbackRoute
   '/resume/analysis/$id': typeof ResumeAnalysisIdRoute
@@ -218,14 +245,17 @@ export interface FileRouteTypes {
     | '/portfolio'
     | '/profile'
     | '/recruiter'
+    | '/recruiters'
     | '/roadmap'
     | '/settings'
     | '/auth/forgot'
     | '/auth/login'
     | '/auth/signup'
+    | '/messages/$id'
     | '/p/$slug'
     | '/resume/upload'
     | '/auth/'
+    | '/messages/'
     | '/resume/'
     | '/auth/oauth/callback'
     | '/resume/analysis/$id'
@@ -240,14 +270,17 @@ export interface FileRouteTypes {
     | '/portfolio'
     | '/profile'
     | '/recruiter'
+    | '/recruiters'
     | '/roadmap'
     | '/settings'
     | '/auth/forgot'
     | '/auth/login'
     | '/auth/signup'
+    | '/messages/$id'
     | '/p/$slug'
     | '/resume/upload'
     | '/auth'
+    | '/messages'
     | '/resume'
     | '/auth/oauth/callback'
     | '/resume/analysis/$id'
@@ -263,14 +296,17 @@ export interface FileRouteTypes {
     | '/portfolio'
     | '/profile'
     | '/recruiter'
+    | '/recruiters'
     | '/roadmap'
     | '/settings'
     | '/auth/forgot'
     | '/auth/login'
     | '/auth/signup'
+    | '/messages/$id'
     | '/p/$slug'
     | '/resume/upload'
     | '/auth/'
+    | '/messages/'
     | '/resume/'
     | '/auth/oauth/callback'
     | '/resume/analysis/$id'
@@ -287,10 +323,13 @@ export interface RootRouteChildren {
   PortfolioRoute: typeof PortfolioRoute
   ProfileRoute: typeof ProfileRoute
   RecruiterRoute: typeof RecruiterRoute
+  RecruitersRoute: typeof RecruitersRoute
   RoadmapRoute: typeof RoadmapRoute
   SettingsRoute: typeof SettingsRoute
+  MessagesIdRoute: typeof MessagesIdRoute
   PSlugRoute: typeof PSlugRoute
   ResumeUploadRoute: typeof ResumeUploadRoute
+  MessagesIndexRoute: typeof MessagesIndexRoute
   ResumeIndexRoute: typeof ResumeIndexRoute
   ResumeAnalysisIdRoute: typeof ResumeAnalysisIdRoute
   ResumeAnalysisIndexRoute: typeof ResumeAnalysisIndexRoute
@@ -310,6 +349,13 @@ declare module '@tanstack/react-router' {
       path: '/roadmap'
       fullPath: '/roadmap'
       preLoaderRoute: typeof RoadmapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recruiters': {
+      id: '/recruiters'
+      path: '/recruiters'
+      fullPath: '/recruiters'
+      preLoaderRoute: typeof RecruitersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recruiter': {
@@ -382,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResumeIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/messages/': {
+      id: '/messages/'
+      path: '/messages'
+      fullPath: '/messages/'
+      preLoaderRoute: typeof MessagesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/': {
       id: '/auth/'
       path: '/'
@@ -401,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/p/$slug'
       fullPath: '/p/$slug'
       preLoaderRoute: typeof PSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messages/$id': {
+      id: '/messages/$id'
+      path: '/messages/$id'
+      fullPath: '/messages/$id'
+      preLoaderRoute: typeof MessagesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/signup': {
@@ -476,10 +536,13 @@ const rootRouteChildren: RootRouteChildren = {
   PortfolioRoute: PortfolioRoute,
   ProfileRoute: ProfileRoute,
   RecruiterRoute: RecruiterRoute,
+  RecruitersRoute: RecruitersRoute,
   RoadmapRoute: RoadmapRoute,
   SettingsRoute: SettingsRoute,
+  MessagesIdRoute: MessagesIdRoute,
   PSlugRoute: PSlugRoute,
   ResumeUploadRoute: ResumeUploadRoute,
+  MessagesIndexRoute: MessagesIndexRoute,
   ResumeIndexRoute: ResumeIndexRoute,
   ResumeAnalysisIdRoute: ResumeAnalysisIdRoute,
   ResumeAnalysisIndexRoute: ResumeAnalysisIndexRoute,

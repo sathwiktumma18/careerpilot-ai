@@ -15,6 +15,7 @@ import {
   Upload,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { RoleGate } from "@/components/auth/RoleGate";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState, ErrorState } from "@/components/common/EmptyState";
 import { useResumeStore, useSelectedResume } from "@/lib/store";
@@ -113,305 +114,310 @@ function InterviewPage() {
   };
 
   return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Interview AI"
-        title="Practice for the role you want"
-        description={
-          session
-            ? `${session.role} · ${session.difficulty} level — answer out loud or type, then get scored.`
-            : "Role-specific questions generated from your resume's skills, with scored feedback."
-        }
-        actions={
-          session && !finished ? (
-            <button
-              onClick={restart}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
-            >
-              <RotateCcw className="h-4 w-4" /> New session
-            </button>
-          ) : undefined
-        }
-      />
-
-      {analyzed.length === 0 ? (
-        <EmptyState
-          icon={MessagesSquare}
-          title="No analyzed resume yet"
-          description="Upload a PDF resume and run an analysis — interview questions are generated from the skills it detects."
-          action={
-            <Link
-              to="/resume/upload"
-              className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)]"
-            >
-              <Upload className="h-4 w-4" /> Upload resume
-            </Link>
+    <RoleGate roles={["job_seeker"]} redirectTo="/dashboard">
+      <AppShell>
+        <PageHeader
+          eyebrow="Interview AI"
+          title="Practice for the role you want"
+          description={
+            session
+              ? `${session.role} · ${session.difficulty} level — answer out loud or type, then get scored.`
+              : "Role-specific questions generated from your resume's skills, with scored feedback."
+          }
+          actions={
+            session && !finished ? (
+              <button
+                onClick={restart}
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+              >
+                <RotateCcw className="h-4 w-4" /> New session
+              </button>
+            ) : undefined
           }
         />
-      ) : session === null ? (
-        /* --------------------------- Setup panel --------------------------- */
-        <div className="mx-auto mt-6 max-w-2xl">
-          <div className="glass rounded-2xl p-6">
-            <h2 className="flex items-center gap-2 text-base font-semibold">
-              <ListChecks className="h-4 w-4 text-primary" /> Session setup
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Pick a resume and target role. Questions adapt to the skills the analysis found.
-            </p>
 
-            <label className="mt-5 block text-xs font-medium text-muted-foreground">Resume</label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {analyzed.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => selectResume(r.id)}
-                  className={
-                    "rounded-full border px-3 py-1 text-xs transition " +
-                    (r.id === activeId
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-card/50 text-muted-foreground hover:text-foreground")
-                  }
-                >
-                  {r.fileName}
-                </button>
-              ))}
-            </div>
+        {analyzed.length === 0 ? (
+          <EmptyState
+            icon={MessagesSquare}
+            title="No analyzed resume yet"
+            description="Upload a PDF resume and run an analysis — interview questions are generated from the skills it detects."
+            action={
+              <Link
+                to="/resume/upload"
+                className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)]"
+              >
+                <Upload className="h-4 w-4" /> Upload resume
+              </Link>
+            }
+          />
+        ) : session === null ? (
+          /* --------------------------- Setup panel --------------------------- */
+          <div className="mx-auto mt-6 max-w-2xl">
+            <div className="glass rounded-2xl p-6">
+              <h2 className="flex items-center gap-2 text-base font-semibold">
+                <ListChecks className="h-4 w-4 text-primary" /> Session setup
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Pick a resume and target role. Questions adapt to the skills the analysis found.
+              </p>
 
-            <label className="mt-5 block text-xs font-medium text-muted-foreground">
-              Target role
-            </label>
-            <input
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              placeholder="e.g. Full Stack Engineer"
-              className="mt-2 w-full rounded-xl border border-border bg-card/50 px-3 py-2 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-            />
-
-            <label className="mt-5 block text-xs font-medium text-muted-foreground">
-              Difficulty
-            </label>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {DIFFICULTIES.map((d) => (
-                <button
-                  key={d.value}
-                  onClick={() => setDifficulty(d.value)}
-                  title={d.hint}
-                  className={
-                    "rounded-xl border px-3 py-2 text-sm font-medium transition " +
-                    (difficulty === d.value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-card/50 text-muted-foreground hover:text-foreground")
-                  }
-                >
-                  {d.label}
-                </button>
-              ))}
-            </div>
-
-            <label className="mt-5 block text-xs font-medium text-muted-foreground">
-              Questions
-            </label>
-            <div className="mt-2 flex gap-2">
-              {COUNTS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCount(c)}
-                  className={
-                    "h-10 w-12 rounded-xl border text-sm font-medium transition " +
-                    (count === c
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-card/50 text-muted-foreground hover:text-foreground")
-                  }
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => void start()}
-              disabled={loading || !activeId}
-              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              {loading ? "Generating questions…" : "Start interview"}
-            </button>
-            {error && (
-              <div className="mt-4">
-                <ErrorState description={error} onRetry={() => void start()} />
+              <label className="mt-5 block text-xs font-medium text-muted-foreground">Resume</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {analyzed.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => selectResume(r.id)}
+                    className={
+                      "rounded-full border px-3 py-1 text-xs transition " +
+                      (r.id === activeId
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card/50 text-muted-foreground hover:text-foreground")
+                    }
+                  >
+                    {r.fileName}
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
-        </div>
-      ) : finished ? (
-        /* --------------------------- Done summary -------------------------- */
-        <div className="mx-auto mt-6 max-w-2xl">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-2xl p-8 text-center"
-          >
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
-              <CheckCircle2 className="h-7 w-7 text-emerald-500" />
-            </div>
-            <h2 className="mt-4 text-xl font-semibold">Session complete 🎉</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {session.role} · {session.difficulty} · {session.questions.length} questions. Final
-              score: <span className="font-semibold text-foreground">{feedback.score}/100</span>.
-            </p>
-            <button
-              onClick={restart}
-              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-5 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90"
-            >
-              <RotateCcw className="h-4 w-4" /> Start a new session
-            </button>
-          </motion.div>
-        </div>
-      ) : (
-        /* --------------------------- Active session ------------------------ */
-        <div className="mx-auto mt-6 max-w-3xl">
-          {/* Progress */}
-          <div className="mb-4 flex items-center justify-between text-xs text-muted-foreground">
-            <span>
-              Question {index + 1} of {session.questions.length}
-            </span>
-            <span className="capitalize">{session.difficulty}</span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-card">
-            <div
-              className="h-full rounded-full bg-[image:var(--gradient-primary)] transition-all duration-500"
-              style={{
-                width: `${((index + (feedback ? 1 : 0)) / session.questions.length) * 100}%`,
-              }}
-            />
-          </div>
 
-          {error && (
-            <div className="mt-4">
-              <ErrorState description={error} onRetry={() => void (feedback ? next() : score())} />
-            </div>
-          )}
+              <label className="mt-5 block text-xs font-medium text-muted-foreground">
+                Target role
+              </label>
+              <input
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                placeholder="e.g. Full Stack Engineer"
+                className="mt-2 w-full rounded-xl border border-border bg-card/50 px-3 py-2 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+              />
 
-          {question && (
+              <label className="mt-5 block text-xs font-medium text-muted-foreground">
+                Difficulty
+              </label>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {DIFFICULTIES.map((d) => (
+                  <button
+                    key={d.value}
+                    onClick={() => setDifficulty(d.value)}
+                    title={d.hint}
+                    className={
+                      "rounded-xl border px-3 py-2 text-sm font-medium transition " +
+                      (difficulty === d.value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card/50 text-muted-foreground hover:text-foreground")
+                    }
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+
+              <label className="mt-5 block text-xs font-medium text-muted-foreground">
+                Questions
+              </label>
+              <div className="mt-2 flex gap-2">
+                {COUNTS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setCount(c)}
+                    className={
+                      "h-10 w-12 rounded-xl border text-sm font-medium transition " +
+                      (count === c
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-card/50 text-muted-foreground hover:text-foreground")
+                    }
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => void start()}
+                disabled={loading || !activeId}
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                {loading ? "Generating questions…" : "Start interview"}
+              </button>
+              {error && (
+                <div className="mt-4">
+                  <ErrorState description={error} onRetry={() => void start()} />
+                </div>
+              )}
+            </div>
+          </div>
+        ) : finished ? (
+          /* --------------------------- Done summary -------------------------- */
+          <div className="mx-auto mt-6 max-w-2xl">
             <motion.div
-              key={question.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass mt-4 rounded-2xl p-6"
+              className="glass rounded-2xl p-8 text-center"
             >
-              <span className={CATEGORY_TONE[question.category] ?? CATEGORY_TONE.default}>
-                {question.category}
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
+                <CheckCircle2 className="h-7 w-7 text-emerald-500" />
+              </div>
+              <h2 className="mt-4 text-xl font-semibold">Session complete 🎉</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {session.role} · {session.difficulty} · {session.questions.length} questions. Final
+                score: <span className="font-semibold text-foreground">{feedback.score}/100</span>.
+              </p>
+              <button
+                onClick={restart}
+                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-5 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90"
+              >
+                <RotateCcw className="h-4 w-4" /> Start a new session
+              </button>
+            </motion.div>
+          </div>
+        ) : (
+          /* --------------------------- Active session ------------------------ */
+          <div className="mx-auto mt-6 max-w-3xl">
+            {/* Progress */}
+            <div className="mb-4 flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                Question {index + 1} of {session.questions.length}
               </span>
-              <h3 className="mt-3 text-lg font-semibold leading-snug">{question.text}</h3>
+              <span className="capitalize">{session.difficulty}</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-card">
+              <div
+                className="h-full rounded-full bg-[image:var(--gradient-primary)] transition-all duration-500"
+                style={{
+                  width: `${((index + (feedback ? 1 : 0)) / session.questions.length) * 100}%`,
+                }}
+              />
+            </div>
 
-              <details className="mt-3 text-xs text-muted-foreground">
-                <summary className="cursor-pointer select-none">
-                  What a strong answer covers
-                </summary>
-                <ul className="mt-2 space-y-1">
-                  {question.evaluationHints.map((hint) => (
-                    <li key={hint} className="flex items-start gap-1.5">
-                      <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" />
-                      {hint}
-                    </li>
-                  ))}
-                </ul>
-              </details>
+            {error && (
+              <div className="mt-4">
+                <ErrorState
+                  description={error}
+                  onRetry={() => void (feedback ? next() : score())}
+                />
+              </div>
+            )}
 
-              {feedback ? (
-                <div className="mt-5 border-t border-border/60 pt-5">
-                  <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-                    <ScoreRing score={feedback.score} />
-                    <div className="min-w-0 flex-1 space-y-4">
-                      <div>
-                        <h4 className="text-xs font-semibold uppercase tracking-wide text-emerald-500">
-                          Strengths
-                        </h4>
-                        <ul className="mt-1.5 space-y-1 text-sm text-foreground/90">
-                          {feedback.strengths.map((s) => (
-                            <li key={s} className="flex gap-2">
-                              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                              {s}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-semibold uppercase tracking-wide text-amber-500">
-                          To improve
-                        </h4>
-                        <ul className="mt-1.5 space-y-1 text-sm text-foreground/90">
-                          {feedback.improvements.map((s) => (
-                            <li key={s} className="flex gap-2">
-                              <ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                              {s}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      {feedback.modelAnswer && (
-                        <div className="rounded-xl bg-card/60 p-4">
-                          <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
-                            <Lightbulb className="h-3.5 w-3.5" /> Model answer
+            {question && (
+              <motion.div
+                key={question.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass mt-4 rounded-2xl p-6"
+              >
+                <span className={CATEGORY_TONE[question.category] ?? CATEGORY_TONE.default}>
+                  {question.category}
+                </span>
+                <h3 className="mt-3 text-lg font-semibold leading-snug">{question.text}</h3>
+
+                <details className="mt-3 text-xs text-muted-foreground">
+                  <summary className="cursor-pointer select-none">
+                    What a strong answer covers
+                  </summary>
+                  <ul className="mt-2 space-y-1">
+                    {question.evaluationHints.map((hint) => (
+                      <li key={hint} className="flex items-start gap-1.5">
+                        <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" />
+                        {hint}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+
+                {feedback ? (
+                  <div className="mt-5 border-t border-border/60 pt-5">
+                    <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+                      <ScoreRing score={feedback.score} />
+                      <div className="min-w-0 flex-1 space-y-4">
+                        <div>
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-emerald-500">
+                            Strengths
                           </h4>
-                          <p className="mt-1.5 text-sm text-foreground/80">
-                            {feedback.modelAnswer}
-                          </p>
+                          <ul className="mt-1.5 space-y-1 text-sm text-foreground/90">
+                            {feedback.strengths.map((s) => (
+                              <li key={s} className="flex gap-2">
+                                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                                {s}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
-                      )}
+                        <div>
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-amber-500">
+                            To improve
+                          </h4>
+                          <ul className="mt-1.5 space-y-1 text-sm text-foreground/90">
+                            {feedback.improvements.map((s) => (
+                              <li key={s} className="flex gap-2">
+                                <ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                                {s}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        {feedback.modelAnswer && (
+                          <div className="rounded-xl bg-card/60 p-4">
+                            <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+                              <Lightbulb className="h-3.5 w-3.5" /> Model answer
+                            </h4>
+                            <p className="mt-1.5 text-sm text-foreground/80">
+                              {feedback.modelAnswer}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex justify-end">
+                      <button
+                        onClick={next}
+                        className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90"
+                      >
+                        {isLast ? "Finish session" : "Next question"}
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
-
-                  <div className="mt-5 flex justify-end">
-                    <button
-                      onClick={next}
-                      className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90"
-                    >
-                      {isLast ? "Finish session" : "Next question"}
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
+                ) : (
+                  <div className="mt-5">
+                    <textarea
+                      value={answer}
+                      onChange={(e) => setAnswer(e.target.value)}
+                      rows={8}
+                      placeholder={
+                        "Type your answer… Try STAR: Situation, Task, Action, Result. " +
+                        "Name trade-offs and back claims with numbers."
+                      }
+                      className="w-full resize-y rounded-xl border border-border bg-card/50 p-3 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                    />
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        {answer.trim().length ? `${answer.trim().split(/\s+/).length} words` : " "}
+                      </span>
+                      <button
+                        onClick={() => void score()}
+                        disabled={loading || !answer.trim()}
+                        className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {loading ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        {loading ? "Scoring…" : "Score my answer"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="mt-5">
-                  <textarea
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    rows={8}
-                    placeholder={
-                      "Type your answer… Try STAR: Situation, Task, Action, Result. " +
-                      "Name trade-offs and back claims with numbers."
-                    }
-                    className="w-full resize-y rounded-xl border border-border bg-card/50 p-3 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
-                  />
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      {answer.trim().length ? `${answer.trim().split(/\s+/).length} words` : " "}
-                    </span>
-                    <button
-                      onClick={() => void score()}
-                      disabled={loading || !answer.trim()}
-                      className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4" />
-                      )}
-                      {loading ? "Scoring…" : "Score my answer"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </div>
-      )}
-    </AppShell>
+                )}
+              </motion.div>
+            )}
+          </div>
+        )}
+      </AppShell>
+    </RoleGate>
   );
 }
 

@@ -1,5 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -9,13 +10,32 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowRight, FileText, Sparkles, Upload, Zap } from "lucide-react";
+import {
+  ArrowRight,
+  FileText,
+  MessageSquare,
+  Palette,
+  Sparkles,
+  Upload,
+  UserRoundSearch,
+  Users,
+  Zap,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
 import { EmptyState } from "@/components/common/EmptyState";
-import { useAuthStore, useResumeStore, useSelectedResume, useNotificationStore } from "@/lib/store";
+import {
+  useAuthStore,
+  useResumeStore,
+  useSelectedResume,
+  useNotificationStore,
+  useRecruiterStore,
+  type User,
+} from "@/lib/store";
+import { messagesService, recruiterService, type ApiCandidateSummary } from "@/services/api";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — CareerPilot AI" }] }),
@@ -23,12 +43,19 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function Dashboard() {
+  const role = useAuthStore((s) => s.user?.role ?? "job_seeker");
   const user = useAuthStore((s) => s.user);
   const resumes = useResumeStore((s) => s.resumes);
   const selectResume = useResumeStore((s) => s.selectResume);
   const selectedId = useResumeStore((s) => s.selectedId);
   const selected = useSelectedResume();
   const activity = useNotificationStore((s) => s.items).slice(0, 6);
+
+  // Recruiters get a candidate-centric dashboard — job-seeker resume stats make
+  // no sense for them.
+  if (role === "recruiter") {
+    return <RecruiterDashboard user={user} />;
+  }
 
   const stats = (() => {
     const avg = resumes.length
@@ -347,6 +374,222 @@ function Dashboard() {
             </Link>
           </motion.div>
         ))}
+      </div>
+    </AppShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Recruiter dashboard — candidate stats instead of resume stats              */
+/* -------------------------------------------------------------------------- */
+
+function RecruiterDashboard({ user }: { user: User | null }) {
+  const navigate = useNavigate();
+  const shortlisted = useRecruiterStore((s) => s.shortlistedIds.length);
+  const [candidates, setCandidates] = useState<ApiCandidateSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    recruiterService
+      .candidates()
+      .then(setCandidates)
+      .catch(() => toast.error("Could not load candidates"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const avgAts = (() => {
+    const scored = candidates.filter((c) => c.ats_score != null);
+    return scored.length
+      ? Math.round(scored.reduce((a, c) => a + (c.ats_score ?? 0), 0) / scored.length)
+      : null;
+  })();
+
+  const totalSearches = candidates.reduce((a, c) => a + c.search_count, 0);
+
+  async function messageCandidate(candidateId: string) {
+    try {
+      const thread = await messagesService.open(candidateId);
+      navigate({ to: "/messages/$id", params: { id: thread.id } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not start a conversation");
+    }
+  }
+
+  const initials = (name: string) =>
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]!.toUpperCase())
+      .join("") || "C";
+
+  const top = [...candidates].sort((a, b) => (b.ats_score ?? -1) - (a.ats_score ?? -1)).slice(0, 5);
+
+  return (
+    <AppShell>
+      <PageHeader
+        eyebrow="Overview"
+        title={`Welcome back${user ? `, ${user.name.split(" ")[0]}` : ""}`}
+        description="Your candidate pipeline at a glance — who's active, who's strong, and who you should message."
+        actions={
+          <Link
+            to="/recruiter"
+            className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90"
+          >
+            <UserRoundSearch className="h-4 w-4" /> Open candidate pipeline
+          </Link>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          index={0}
+          label="Active candidates"
+          value={String(candidates.length)}
+          delta="on the platform"
+        />
+        <StatCard
+          index={1}
+          label="Avg ATS"
+          value={avgAts ? String(avgAts) : "—"}
+          delta={avgAts ? "pool average" : "no analyses yet"}
+        />
+        <StatCard
+          index={2}
+          label="Shortlisted"
+          value={String(shortlisted)}
+          delta="saved for later"
+        />
+        <StatCard
+          index={3}
+          label="Job searches"
+          value={String(totalSearches)}
+          delta="across candidates"
+        />
+      </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass rounded-2xl p-6 lg:col-span-2"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">Top candidates by ATS</h3>
+              <p className="text-xs text-muted-foreground">
+                The strongest active seekers on your list
+              </p>
+            </div>
+            <Link
+              to="/recruiter"
+              className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-primary/20"
+            >
+              View all
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="flex h-56 items-center justify-center text-muted-foreground">
+              <Sparkles className="h-5 w-5 animate-pulse text-primary" />
+            </div>
+          ) : top.length === 0 ? (
+            <div className="flex h-56 items-center justify-center">
+              <EmptyState
+                icon={Users}
+                title="No candidates yet"
+                description="When job seekers analyze resumes or search roles, they'll appear here."
+              />
+            </div>
+          ) : (
+            <div className="mt-4 overflow-hidden rounded-xl border border-border/60">
+              {top.map((c, i) => (
+                <div
+                  key={c.user_id}
+                  className="flex items-center gap-3 border-b border-border/40 px-4 py-3 transition last:border-0 hover:bg-card/40"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[image:var(--gradient-primary)] text-xs font-bold text-white">
+                    {initials(c.name)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{c.name}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {c.headline || "Career professional"}
+                      {c.ats_score != null ? ` · ATS ${c.ats_score}` : ""}
+                    </div>
+                  </div>
+                  {c.ats_score != null && (
+                    <span className="hidden rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary sm:inline">
+                      ATS {c.ats_score}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => void messageCandidate(c.user_id)}
+                    aria-label={`Message ${c.name}`}
+                    className="rounded-lg border border-border p-2 text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="glass rounded-2xl p-6"
+        >
+          <h3 className="text-sm font-semibold">Recruiter shortcuts</h3>
+          <div className="mt-4 space-y-2">
+            {[
+              {
+                to: "/recruiter" as const,
+                title: "Candidate pipeline",
+                desc: "Search, filter, and shortlist active seekers.",
+                icon: Users,
+              },
+              {
+                to: "/messages" as const,
+                title: "Inbox",
+                desc: "Reply to job seekers who've reached out.",
+                icon: MessageSquare,
+              },
+              {
+                to: "/portfolio" as const,
+                title: "My portfolio",
+                desc: "Your public recruiter profile page.",
+                icon: Palette,
+              },
+            ].map((s) => {
+              const Icon = s.icon;
+              return (
+                <Link
+                  key={s.to}
+                  to={s.to}
+                  className="group flex items-start gap-3 rounded-xl border border-border bg-card/40 p-3 transition hover:border-primary/40 hover:bg-card/70"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 text-sm font-medium">
+                      {s.title}
+                      {s.title === "Candidate pipeline" && (
+                        <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary">
+                          {candidates.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{s.desc}</div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </motion.div>
       </div>
     </AppShell>
   );

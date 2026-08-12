@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.models.resume import Resume
 from app.models.seeker_activity import SeekerActivity
 from app.models.user import ROLE_JOB_SEEKER, ROLE_RECRUITER, User
+from app.services.message_service import conversation_between
 from app.services.portfolio_service import derive_slug
 from app.services.resume_service import resume_service
 
@@ -129,16 +130,26 @@ def list_candidates(db: Session) -> list[dict]:
     return out
 
 
-def get_candidate(db: Session, user_id: str) -> dict | None:
+def get_candidate(
+    db: Session, user_id: str, recruiter_id: str | None = None
+) -> dict | None:
     """Full candidate detail (adds summary + skills), or None if the user has no
-    activity (not a candidate) — recruiters only ever see active seekers."""
+    activity (not a candidate) — recruiters only ever see active seekers.
+
+    When `recruiter_id` is given, the detail also carries the id of the thread
+    between that recruiter and this candidate (or null when none exists yet).
+    """
     user = db.get(User, user_id)
     if user is None or user.role != ROLE_JOB_SEEKER:
         return None
     activities = _activities_for(db, user.id)
     if not activities:
         return None
-    return _build_candidate(db, user, activities, include_detail=True)
+    detail = _build_candidate(db, user, activities, include_detail=True)
+    if recruiter_id:
+        convo = conversation_between(db, seeker_id=user.id, recruiter_id=recruiter_id)
+        detail["conversation_id"] = convo.id if convo else None
+    return detail
 
 
 def list_recruiters(db: Session) -> list[dict]:

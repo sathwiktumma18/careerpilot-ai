@@ -28,9 +28,9 @@ def candidates(
 def candidate_detail(
     user_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_recruiter),
+    user: User = Depends(get_current_recruiter),
 ) -> CandidateDetail:
-    detail = get_candidate(db, user_id)
+    detail = get_candidate(db, user_id, recruiter_id=user.id)
     if detail is None:
         raise HTTPException(status_code=404, detail="Candidate not found")
     return CandidateDetail(**detail)

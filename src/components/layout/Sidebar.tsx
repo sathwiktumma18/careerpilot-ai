@@ -9,11 +9,13 @@ import {
   Palette,
   Settings,
   Sparkles,
+  Users,
+  UserRoundSearch,
 } from "lucide-react";
 import { useAuthStore, type UserRole } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
-/** Job seekers see the full AI suite. */
+/** Job seekers see the full AI suite + the recruiter network. */
 const seekerNav = [
   {
     label: "Overview",
@@ -30,22 +32,32 @@ const seekerNav = [
     ],
   },
   {
+    label: "Network",
+    items: [
+      { to: "/messages", label: "Inbox", icon: MessagesSquare },
+      { to: "/recruiters", label: "Recruiters", icon: Users },
+    ],
+  },
+  {
     label: "Account",
     items: [{ to: "/settings", label: "Settings", icon: Settings }],
   },
 ];
 
-/** Recruiters don't analyze resumes/interviews — they get a candidate dashboard,
- * their own portfolio, and messaging. (Messaging + candidates arrive with the
- * inbox feature; the dashboard becomes role-aware in the recruiter phase.) */
+/** Recruiters get ONLY recruiter features: a candidate dashboard, their own
+ * portfolio, and messaging. No resume/interview/roadmap/job-match. */
 const recruiterNav = [
   {
     label: "Overview",
     items: [{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
   },
   {
-    label: "AI Modules",
-    items: [{ to: "/portfolio", label: "PortfolioAI", icon: Palette, badge: "Live" }],
+    label: "Recruiting",
+    items: [
+      { to: "/recruiter", label: "Candidates", icon: UserRoundSearch },
+      { to: "/messages", label: "Inbox", icon: MessagesSquare },
+      { to: "/portfolio", label: "My Portfolio", icon: Palette, badge: "Live" },
+    ],
   },
   {
     label: "Account",

@@ -162,14 +162,24 @@ class ResumeService:
     # --- Analysis -------------------------------------------------------------
 
     async def analyze(
-        self, db: Session, resume_id: str, user_id: str, version_no: int | None = None
+        self,
+        db: Session,
+        resume_id: str,
+        user_id: str,
+        version_no: int | None = None,
+        *,
+        job_description: str | None = None,
+        target_role: str | None = None,
     ) -> AnalysisResponse:
         resume = self.get_owned(db, resume_id, user_id)
         version = self._resolve_version(resume, version_no)
+        jd_mode = bool(job_description or target_role)
 
         # Re-analysis is cheap to re-run and keeps output fresh; only reuse the
         # stored result if a previous analysis exists AND text extraction worked.
-        if version.status == "analyzed" and version.analysis:
+        # JD-specific analyses are always recomputed — they score THIS posting,
+        # so caching a previous JD result would be stale.
+        if not jd_mode and version.status == "analyzed" and version.analysis:
             return AnalysisResponse.model_validate(version.analysis)
 
         try:
@@ -179,7 +189,21 @@ class ResumeService:
             db.commit()
             raise UploadRejectedError(str(exc)) from exc
 
-        analysis = await ai_provider.analyze_resume(version.id, version.file_name, text)
+        analysis = await ai_provider.analyze_resume(
+            version.id,
+            version.file_name,
+            text,
+            job_description=job_description,
+            target_role=target_role,
+        )
+
+        # JD analyses are transient: they never overwrite the stored general
+        # baseline, so a later plain "Analyze" returns the stable benchmark.
+        if jd_mode:
+            analysis.analysis_mode = "jd"
+            analysis.target_role = target_role or job_description or "job"
+            self._record_seeker_activity(db, resume, user_id, analysis)
+            return analysis
 
         version.text = text
         version.analysis = analysis.model_dump(mode="json")
@@ -187,9 +211,17 @@ class ResumeService:
         version.status = "analyzed"
         version.analyzed_at = datetime.now(timezone.utc)
         db.commit()
-        # Surface this seeker in the recruiter candidate pool. Imported here
-        # (not at module top) to avoid a circular import chain:
-        # resume_service → seeker_service → portfolio_service → resume_service.
+        self._record_seeker_activity(db, resume, user_id, analysis)
+        return analysis
+
+    @staticmethod
+    def _record_seeker_activity(
+        db: Session, resume: Resume, user_id: str, analysis: AnalysisResponse
+    ) -> None:
+        """Surface this seeker in the recruiter candidate pool. Imported here
+        (not at module top) to avoid a circular import chain:
+        resume_service → seeker_service → portfolio_service → resume_service.
+        """
         from app.services.seeker_service import record_activity, role_from_analysis
 
         record_activity(
@@ -199,7 +231,6 @@ class ResumeService:
             role=role_from_analysis(analysis.model_dump(mode="json")),
             detail=resume.title,
         )
-        return analysis
 
     def _resolve_version(self, resume: Resume, version_no: int | None) -> ResumeVersion:
         """The version to analyze: explicitly requested one, else the current."""

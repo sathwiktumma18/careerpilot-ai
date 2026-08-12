@@ -23,8 +23,11 @@ import {
   Briefcase,
   History,
   Upload,
+  Target,
+  Loader2,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { RoleGate } from "@/components/auth/RoleGate";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Gauge } from "@/components/common/Gauge";
@@ -59,6 +62,30 @@ function AnalysisPage() {
   // of the chosen historical version.
   const [viewingVersion, setViewingVersion] = useState<number | null>(null);
   const [versionAnalysis, setVersionAnalysis] = useState<Analysis | null>(null);
+  // Phase B: JD-scored analysis panel on this page.
+  const [jdPanelOpen, setJdPanelOpen] = useState(false);
+  const [jdRole, setJdRole] = useState("");
+  const [jdText, setJdText] = useState("");
+  const [jdScoring, setJdScoring] = useState(false);
+
+  async function handleJdScore() {
+    if (!jdRole.trim() && !jdText.trim()) {
+      toast.error("Add a target role or paste a job description first.");
+      return;
+    }
+    setJdScoring(true);
+    try {
+      await resumeService.analyze(id, {
+        targetRole: jdRole.trim() || undefined,
+        jobDescription: jdText.trim() || undefined,
+      });
+      toast.success("Score against the posting complete");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not score against this posting");
+    } finally {
+      setJdScoring(false);
+    }
+  }
 
   useEffect(() => {
     if (!record) return;
@@ -123,294 +150,371 @@ function AnalysisPage() {
     toast.success("Share link copied");
   }
   return (
-    <AppShell>
-      <PageHeader
-        eyebrow={record.fileName}
-        title={`Analysis for ${a.candidate.name}`}
-        description={`${a.candidate.title} · ${a.candidate.location} · ${a.candidate.yearsExperience} years experience`}
-        actions={
-          <>
-            <button
-              onClick={handleShare}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card"
-            >
-              <Share2 className="h-4 w-4" /> Share
-            </button>
-            <button
-              onClick={handleExport}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card"
-            >
-              <Download className="h-4 w-4" /> Export report
-            </button>
-            <button
-              onClick={() => navigate({ to: "/resume/upload", search: { resumeId: id } })}
-              className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)]"
-            >
-              <Upload className="h-4 w-4" /> Upload new version
-            </button>
-          </>
-        }
-      />
+    <RoleGate roles={["job_seeker"]} redirectTo="/dashboard">
+      <AppShell>
+        <PageHeader
+          eyebrow={record.fileName}
+          title={`Analysis for ${a.candidate.name}`}
+          description={`${a.candidate.title} · ${a.candidate.location} · ${a.candidate.yearsExperience} years experience`}
+          actions={
+            <>
+              <button
+                onClick={handleShare}
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card"
+              >
+                <Share2 className="h-4 w-4" /> Share
+              </button>
+              <button
+                onClick={handleExport}
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card"
+              >
+                <Download className="h-4 w-4" /> Export report
+              </button>
+              <button
+                onClick={() => navigate({ to: "/resume/upload", search: { resumeId: id } })}
+                className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)]"
+              >
+                <Upload className="h-4 w-4" /> Upload new version
+              </button>
+            </>
+          }
+        />
 
-      {/* Version picker — switch between snapshots of this resume. */}
-      {record.versions.length > 1 && (
-        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/40 px-4 py-3">
-          <History className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Version
-          </span>
-          <select
-            value={viewingVersion ?? record.versionCount}
-            onChange={(e) => handleVersionChange(Number(e.target.value))}
-            className="h-9 rounded-lg border border-input bg-card px-2 text-sm outline-none focus:border-primary"
-            aria-label="Select resume version"
+        {/* Version picker — switch between snapshots of this resume. */}
+        {record.versions.length > 1 && (
+          <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/40 px-4 py-3">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Version
+            </span>
+            <select
+              value={viewingVersion ?? record.versionCount}
+              onChange={(e) => handleVersionChange(Number(e.target.value))}
+              className="h-9 rounded-lg border border-input bg-card px-2 text-sm outline-none focus:border-primary"
+              aria-label="Select resume version"
+            >
+              {record.versions.map((v) => (
+                <option key={v.versionNo} value={v.versionNo}>
+                  v{v.versionNo} · {v.fileName}
+                  {v.atsScore != null
+                    ? ` · ATS ${v.atsScore}`
+                    : v.status === "uploaded"
+                      ? " · not analyzed"
+                      : ""}
+                </option>
+              ))}
+            </select>
+            {viewingVersion != null && (
+              <button
+                onClick={() => handleVersionChange(record.versionCount)}
+                className="text-xs text-primary hover:underline"
+              >
+                Back to current version
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* JD-scored analysis — re-score the current version against a posting. */}
+        <div className="mb-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setJdPanelOpen((o) => !o)}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/40 px-4 py-2 text-sm transition hover:border-primary/40 hover:bg-card"
+            >
+              <Target className="h-4 w-4 text-primary" />
+              Score against a job posting
+            </button>
+            {a.analysisMode === "jd" && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Fit for {a.targetRole || "the pasted job description"}
+              </span>
+            )}
+          </div>
+          <motion.div
+            initial={false}
+            animate={{ height: jdPanelOpen ? "auto" : 0, opacity: jdPanelOpen ? 1 : 0 }}
+            className="overflow-hidden"
           >
-            {record.versions.map((v) => (
-              <option key={v.versionNo} value={v.versionNo}>
-                v{v.versionNo} · {v.fileName}
-                {v.atsScore != null
-                  ? ` · ATS ${v.atsScore}`
-                  : v.status === "uploaded"
-                    ? " · not analyzed"
-                    : ""}
-              </option>
-            ))}
-          </select>
-          {viewingVersion != null && (
-            <button
-              onClick={() => handleVersionChange(record.versionCount)}
-              className="text-xs text-primary hover:underline"
-            >
-              Back to current version
-            </button>
-          )}
+            <div className="glass mt-3 max-w-3xl space-y-3 rounded-2xl p-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Target role (optional)
+                </label>
+                <input
+                  value={jdRole}
+                  onChange={(e) => setJdRole(e.target.value)}
+                  placeholder="e.g. Senior Backend Engineer"
+                  className="h-10 w-full rounded-xl border border-input bg-card/60 px-3 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Job description
+                </label>
+                <textarea
+                  value={jdText}
+                  onChange={(e) => setJdText(e.target.value)}
+                  rows={4}
+                  placeholder="Paste the posting here — we score your resume's fit for it. Leave empty to score against the target role only."
+                  className="w-full resize-y rounded-xl border border-input bg-card/60 px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={handleJdScore}
+                  disabled={jdScoring || (!jdRole.trim() && !jdText.trim())}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {jdScoring ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Target className="h-4 w-4" />
+                  )}
+                  {jdScoring ? "Scoring…" : "Score this posting"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
         </div>
-      )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* ATS Score */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass relative overflow-hidden rounded-2xl p-6"
-        >
-          <div className="absolute inset-0 bg-[image:var(--gradient-glow)]" />
-          <div className="relative">
-            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              ATS score
-            </div>
-            <div className="mt-2 flex justify-center">
-              <Gauge score={a.atsScore} size={148} sublabel="overall fit" />
-            </div>
-            <div className="mt-4 space-y-2">
-              {a.scoreBreakdown.map((b) => (
-                <div key={b.label}>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">{b.label}</span>
-                    <span className="font-medium">{b.score}</span>
-                  </div>
-                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-[image:var(--gradient-primary)]"
-                      style={{ width: `${b.score}%` }}
-                    />
-                  </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* ATS Score */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass relative overflow-hidden rounded-2xl p-6"
+          >
+            <div className="absolute inset-0 bg-[image:var(--gradient-glow)]" />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {a.analysisMode === "jd" ? "Fit for posting" : "ATS score"}
                 </div>
+                {a.analysisMode === "jd" && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    <Target className="h-3 w-3" /> JD
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 flex justify-center">
+                <Gauge
+                  score={a.atsScore}
+                  size={148}
+                  sublabel={a.analysisMode === "jd" ? "fit for posting" : "overall fit"}
+                />
+              </div>
+              <div className="mt-4 space-y-2">
+                {a.scoreBreakdown.map((b) => (
+                  <div key={b.label}>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">{b.label}</span>
+                      <span className="font-medium">{b.score}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-[image:var(--gradient-primary)]"
+                        style={{ width: `${b.score}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Summary */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="glass rounded-2xl p-6 lg:col-span-2"
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Sparkles className="h-4 w-4 text-primary" /> AI summary
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{a.summary}</p>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div>
+                <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Skill balance
+                </div>
+                <div className="h-52">
+                  <ResponsiveContainer>
+                    <RadarChart data={a.skillsRadar}>
+                      <PolarGrid stroke="oklch(1 0 0 / 0.08)" />
+                      <PolarAngleAxis
+                        dataKey="area"
+                        tick={{ fontSize: 10, fill: "oklch(0.68 0.03 260)" }}
+                      />
+                      <Radar
+                        dataKey="value"
+                        stroke="oklch(0.65 0.19 258)"
+                        fill="oklch(0.65 0.19 258)"
+                        fillOpacity={0.35}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div>
+                <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Top detected skills
+                </div>
+                <div className="h-52">
+                  <ResponsiveContainer>
+                    <BarChart data={a.detectedSkills.slice(0, 6)} layout="vertical">
+                      <CartesianGrid stroke="oklch(1 0 0 / 0.05)" horizontal={false} />
+                      <XAxis type="number" hide domain={[0, 100]} />
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        stroke="oklch(0.68 0.03 260)"
+                        fontSize={11}
+                        width={80}
+                      />
+                      <Tooltip
+                        cursor={{ fill: "oklch(1 0 0 / 0.04)" }}
+                        contentStyle={{
+                          background: "oklch(0.2 0.025 265)",
+                          border: "1px solid oklch(1 0 0 / 0.08)",
+                          borderRadius: 12,
+                          fontSize: 12,
+                        }}
+                      />
+                      <Bar dataKey="level" fill="oklch(0.65 0.19 258)" radius={[0, 6, 6, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass rounded-2xl p-6"
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <CheckCircle2 className="h-4 w-4 text-[color:var(--success)]" /> Skills detected
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {a.detectedSkills.map((s) => (
+                <span
+                  key={s.name}
+                  className="rounded-full border border-border bg-card/50 px-3 py-1 text-xs"
+                >
+                  {s.name}
+                  <span className="ml-1.5 text-muted-foreground">{s.level}</span>
+                </span>
               ))}
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
 
-        {/* Summary */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="glass rounded-2xl p-6 lg:col-span-2"
-        >
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Sparkles className="h-4 w-4 text-primary" /> AI summary
-          </div>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{a.summary}</p>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div>
-              <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Skill balance
-              </div>
-              <div className="h-52">
-                <ResponsiveContainer>
-                  <RadarChart data={a.skillsRadar}>
-                    <PolarGrid stroke="oklch(1 0 0 / 0.08)" />
-                    <PolarAngleAxis
-                      dataKey="area"
-                      tick={{ fontSize: 10, fill: "oklch(0.68 0.03 260)" }}
-                    />
-                    <Radar
-                      dataKey="value"
-                      stroke="oklch(0.65 0.19 258)"
-                      fill="oklch(0.65 0.19 258)"
-                      fillOpacity={0.35}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="glass rounded-2xl p-6"
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <AlertTriangle className="h-4 w-4 text-[color:var(--warning)]" /> Missing skills
             </div>
-            <div>
-              <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Top detected skills
-              </div>
-              <div className="h-52">
-                <ResponsiveContainer>
-                  <BarChart data={a.detectedSkills.slice(0, 6)} layout="vertical">
-                    <CartesianGrid stroke="oklch(1 0 0 / 0.05)" horizontal={false} />
-                    <XAxis type="number" hide domain={[0, 100]} />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      stroke="oklch(0.68 0.03 260)"
-                      fontSize={11}
-                      width={80}
-                    />
-                    <Tooltip
-                      cursor={{ fill: "oklch(1 0 0 / 0.04)" }}
-                      contentStyle={{
-                        background: "oklch(0.2 0.025 265)",
-                        border: "1px solid oklch(1 0 0 / 0.08)",
-                        borderRadius: 12,
-                        fontSize: 12,
-                      }}
-                    />
-                    <Bar dataKey="level" fill="oklch(0.65 0.19 258)" radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+            <ul className="mt-4 space-y-3">
+              {a.missingSkills.map((s) => (
+                <li key={s.name} className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-semibold">
+                    {s.name[0]}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      {s.name}
+                      <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        {s.importance}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">{s.reason}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass rounded-2xl p-6 lg:col-span-2"
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Lightbulb className="h-4 w-4 text-primary" /> Improvement suggestions
             </div>
-          </div>
-        </motion.div>
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-2xl p-6"
-        >
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <CheckCircle2 className="h-4 w-4 text-[color:var(--success)]" /> Skills detected
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {a.detectedSkills.map((s) => (
-              <span
-                key={s.name}
-                className="rounded-full border border-border bg-card/50 px-3 py-1 text-xs"
-              >
-                {s.name}
-                <span className="ml-1.5 text-muted-foreground">{s.level}</span>
-              </span>
-            ))}
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="glass rounded-2xl p-6"
-        >
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <AlertTriangle className="h-4 w-4 text-[color:var(--warning)]" /> Missing skills
-          </div>
-          <ul className="mt-4 space-y-3">
-            {a.missingSkills.map((s) => (
-              <li key={s.name} className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-semibold">
-                  {s.name[0]}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    {s.name}
-                    <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                      {s.importance}
+            <ul className="mt-4 space-y-3">
+              {a.suggestions.map((s) => (
+                <li
+                  key={s.title}
+                  className={cn(
+                    "rounded-xl border p-4",
+                    severityStyles[s.severity as keyof typeof severityStyles],
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold">{s.title}</div>
+                    <span className="text-[10px] uppercase tracking-wider opacity-70">
+                      {s.severity}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground">{s.reason}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </motion.div>
-      </div>
+                  <p className="mt-1 text-sm opacity-90">{s.detail}</p>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-2xl p-6 lg:col-span-2"
-        >
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Lightbulb className="h-4 w-4 text-primary" /> Improvement suggestions
-          </div>
-          <ul className="mt-4 space-y-3">
-            {a.suggestions.map((s) => (
-              <li
-                key={s.title}
-                className={cn(
-                  "rounded-xl border p-4",
-                  severityStyles[s.severity as keyof typeof severityStyles],
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold">{s.title}</div>
-                  <span className="text-[10px] uppercase tracking-wider opacity-70">
-                    {s.severity}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm opacity-90">{s.detail}</p>
-              </li>
-            ))}
-          </ul>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="glass rounded-2xl p-6"
-        >
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Briefcase className="h-4 w-4 text-primary" /> Recommended roles
-          </div>
-          <ul className="mt-4 space-y-3">
-            {a.recommendedRoles.map((r) => (
-              <li
-                key={r.role}
-                className="rounded-xl border border-border bg-card/40 p-3 transition hover:border-primary/40"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium">{r.role}</div>
-                  <div className="text-xs font-semibold text-primary">{r.match}%</div>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {r.company} · {r.location}
-                </div>
-                <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-[image:var(--gradient-primary)]"
-                    style={{ width: `${r.match}%` }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-          <Link
-            to="/jobmatch"
-            className="mt-4 block rounded-lg border border-border py-2 text-center text-xs text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="glass rounded-2xl p-6"
           >
-            Explore JobMatch AI →
-          </Link>
-        </motion.div>
-      </div>
-    </AppShell>
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Briefcase className="h-4 w-4 text-primary" /> Recommended roles
+            </div>
+            <ul className="mt-4 space-y-3">
+              {a.recommendedRoles.map((r) => (
+                <li
+                  key={r.role}
+                  className="rounded-xl border border-border bg-card/40 p-3 transition hover:border-primary/40"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium">{r.role}</div>
+                    <div className="text-xs font-semibold text-primary">{r.match}%</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {r.company} · {r.location}
+                  </div>
+                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-[image:var(--gradient-primary)]"
+                      style={{ width: `${r.match}%` }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <Link
+              to="/jobmatch"
+              className="mt-4 block rounded-lg border border-border py-2 text-center text-xs text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+            >
+              Explore JobMatch AI →
+            </Link>
+          </motion.div>
+        </div>
+      </AppShell>
+    </RoleGate>
   );
 }

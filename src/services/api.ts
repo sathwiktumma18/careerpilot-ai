@@ -274,12 +274,27 @@ export const resumeService = {
     });
   },
 
-  async analyze(id: string): Promise<ResumeRecord> {
-    const raw = await request<ApiAnalysis>(`/resumes/${id}/analyze`, { method: "POST" });
+  async analyze(
+    id: string,
+    opts?: { jobDescription?: string; targetRole?: string },
+  ): Promise<ResumeRecord> {
+    const jd = opts?.jobDescription || opts?.targetRole;
+    const raw = await request<ApiAnalysis>(`/resumes/${id}/analyze`, {
+      method: "POST",
+      ...(jd
+        ? {
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...(opts?.targetRole ? { target_role: opts.targetRole } : {}),
+              ...(opts?.jobDescription ? { job_description: opts.jobDescription } : {}),
+            }),
+          }
+        : {}),
+    });
     const analysis = mapAnalysisFromApi(raw);
     useResumeStore.getState().updateResumeAnalysis(id, analysis);
     useNotificationStore.getState().push({
-      title: "Resume analysis complete",
+      title: jd ? "JD score complete" : "Resume analysis complete",
       detail: `${analysis.fileName} — ATS ${analysis.atsScore}`,
       kind: "resume",
     });
@@ -606,6 +621,110 @@ export const jobMatchService = {
   },
 };
 
+/* ------------------------------- Messaging -------------------------------- */
+
+export interface ApiMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+  read: boolean;
+}
+
+export interface ApiConversationLite {
+  id: string;
+  other_user_id: string;
+  other_name: string;
+  other_role: string;
+  other_headline: string;
+  preview: string;
+  last_message_at: string;
+  unread_count: number;
+}
+
+export interface ApiConversationDetail {
+  id: string;
+  seeker_id: string;
+  recruiter_id: string;
+  seeker_name: string;
+  recruiter_name: string;
+  seeker_role: string;
+  recruiter_role: string;
+  messages: ApiMessage[];
+  unread_count: number;
+}
+
+export const messagesService = {
+  async list(): Promise<ApiConversationLite[]> {
+    return request<ApiConversationLite[]>("/messages");
+  },
+  /** Open (get-or-create) a thread with another user, returning its detail. */
+  async open(userId: string): Promise<ApiConversationDetail> {
+    return request<ApiConversationDetail>("/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId }),
+    });
+  },
+  async get(conversationId: string): Promise<ApiConversationDetail> {
+    return request<ApiConversationDetail>(`/messages/${conversationId}`);
+  },
+  async send(conversationId: string, body: string): Promise<ApiMessage> {
+    return request<ApiMessage>(`/messages/${conversationId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    });
+  },
+};
+
+/* ---------------------------- Recruiter data ------------------------------- */
+
+export interface ApiRecruiterLite {
+  user_id: string;
+  name: string;
+  email: string;
+  headline: string;
+  slug: string;
+  path: string;
+}
+
+export interface ApiCandidateSummary {
+  user_id: string;
+  name: string;
+  email: string;
+  headline: string;
+  location: string;
+  ats_score: number | null;
+  resume_id: string | null;
+  resume_title: string | null;
+  searched_roles: string[];
+  last_active: string | null;
+  analyzed_count: number;
+  search_count: number;
+}
+
+export interface ApiCandidateDetail extends ApiCandidateSummary {
+  summary: string;
+  skills: string[];
+  conversation_id: string | null;
+}
+
+export const recruiterService = {
+  /** The recruiter directory — job seekers use it to find + message recruiters. */
+  async listRecruiters(): Promise<ApiRecruiterLite[]> {
+    return request<ApiRecruiterLite[]>("/recruiters");
+  },
+  /** The real recruiter dashboard — active job seekers, newest-active first. */
+  async candidates(): Promise<ApiCandidateSummary[]> {
+    return request<ApiCandidateSummary[]>("/recruiter/candidates");
+  },
+  async candidate(userId: string): Promise<ApiCandidateDetail> {
+    return request<ApiCandidateDetail>(`/recruiter/candidates/${userId}`);
+  },
+};
+
 /* -------------------------------- Portfolio -------------------------------- */
 
 export const portfolioService = {
@@ -631,4 +750,6 @@ export const api = {
   interviewService,
   roadmapService,
   portfolioService,
+  messagesService,
+  recruiterService,
 };

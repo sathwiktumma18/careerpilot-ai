@@ -35,6 +35,9 @@ export type Analysis = {
   recommendedRoles: RoleMatch[];
   keywordTrend: TrendPoint[];
   skillsRadar: RadarPoint[];
+  /** "general" = benchmark vs senior roles; "jd" = scored against a pasted JD. */
+  analysisMode?: "general" | "jd";
+  targetRole?: string | null;
 };
 
 /** Placeholder used while a resume is uploading / before analysis lands. */

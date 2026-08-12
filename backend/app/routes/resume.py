@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -73,15 +74,32 @@ async def upload_version(
     )
 
 
+class AnalyzePayload(BaseModel):
+    """Optional body for the analyze endpoint. Omit it entirely for the default
+    general analysis; send `job_description` and/or `target_role` to score the
+    resume against a specific posting."""
+
+    job_description: str | None = Field(default=None, max_length=20000)
+    target_role: str | None = Field(default=None, max_length=200)
+
+
 @router.post("/{resume_id}/analyze", response_model=AnalysisResponse)
 async def analyze_resume(
     resume_id: str,
     version: int | None = Query(default=None, description="Analyze this version (default: current)"),
+    payload: AnalyzePayload | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> AnalysisResponse:
     try:
-        return await resume_service.analyze(db, resume_id, user.id, version_no=version)
+        return await resume_service.analyze(
+            db,
+            resume_id,
+            user.id,
+            version_no=version,
+            job_description=payload.job_description if payload else None,
+            target_role=payload.target_role if payload else None,
+        )
     except ResumeNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Resume not found") from exc
     except ResumeVersionNotFoundError as exc:

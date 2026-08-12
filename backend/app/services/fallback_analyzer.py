@@ -370,10 +370,247 @@ def _summary(*, title: str, years: int, top_skills: list[str], ats: int) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# JD-specific analysis (job_description / target_role)
+# --------------------------------------------------------------------------- #
+
+# target_role -> skill categories. Order matters: the first match wins, so the
+# most specific phrases come first.
+_ROLE_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("full stack", ("Frontend", "Backend")),
+    ("full-stack", ("Frontend", "Backend")),
+    ("frontend", ("Frontend",)),
+    ("backend", ("Backend",)),
+    ("devops", ("DevOps",)),
+    ("sre", ("DevOps", "Backend")),
+    ("site reliability", ("DevOps", "Backend")),
+    ("platform", ("DevOps", "Backend")),
+    ("data engineering", ("Data",)),
+    ("data analyst", ("Data",)),
+    ("machine learning", ("Data", "Backend")),
+    ("ml", ("Data", "Backend")),
+    ("ai", ("Data", "Backend")),
+    ("data", ("Data",)),
+    ("product", ("Product",)),
+    ("design", ("Design",)),
+    ("ux", ("Design",)),
+    ("ui", ("Design", "Frontend")),
+    ("qa", ("Backend", "Product")),
+    ("test", ("Backend",)),
+    ("mobile", ("Frontend", "Backend")),
+    ("security", ("DevOps", "Backend")),
+    ("cloud", ("DevOps",)),
+    ("dev", ("Frontend", "Backend")),
+    ("software", ("Backend", "Frontend")),
+)
+
+
+def _role_categories(role: str | None) -> list[str]:
+    """Skill categories implied by a target role, or [] when unrecognized."""
+    if not role:
+        return []
+    low = role.lower()
+    for keyword, cats in _ROLE_CATEGORIES:
+        if keyword in low:
+            return list(cats)
+    return []
+
+
+def _jd_required_skills(
+    job_description: str | None, target_role: str | None, resume_hits: dict[str, int]
+) -> tuple[list[str], float]:
+    """(required skill names, jd_signal).
+
+    Prefer the skills actually mentioned in the pasted JD (jd_signal=1.0 — the
+    strongest evidence). If the JD is skill-less, fall back to the categories the
+    target role implies (0.6). If neither yields anything, degrade to the
+    resume's own skills so the response still has a coherent fit value (0.0).
+    """
+    if job_description:
+        jd_hits = _skill_counts(job_description)
+        required = [name for name, count in jd_hits.items() if count > 0]
+        if required:
+            return required, 1.0
+    cats = _role_categories(target_role)
+    if cats:
+        required: list[str] = []
+        for cat in cats:
+            for name in skills_in_category(cat):
+                if name not in required:
+                    required.append(name)
+        return required, 0.6
+    return list(resume_hits.keys()), 0.0
+
+
+def _analyze_with_jd(
+    resume_id: str,
+    file_name: str,
+    text: str,
+    *,
+    job_description: str | None,
+    target_role: str | None,
+) -> AnalysisResponse:
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    sections = _detect_sections(lines)
+    skill_hits = _skill_counts(text)
+    candidate = _detect_candidate(text, file_name)
+    years = candidate["years_experience"]
+    base = _compute_scores(
+        sections=sections, skill_hits=skill_hits, text=text, years=years
+    )
+    base_breakdown = {b.label: b.score for b in base["breakdown"]}
+
+    # The JD fit: how much of the posting's required skill set the resume has.
+    resume_has = {name for name, count in skill_hits.items() if count > 0}
+    required, jd_signal = _jd_required_skills(job_description, target_role, resume_has)
+    matched = [s for s in required if s in resume_has]
+    overlap = (len(matched) / len(required)) if required else 1.0
+    jd_fit = round(overlap * 100)
+
+    # Keywords become JD-aware when we have real JD evidence.
+    keywords_base = base_breakdown.get("Keywords", 60)
+    if jd_signal > 0:
+        keywords = _clamp(round(keywords_base * 0.5 + jd_fit * 0.5), 30, 98)
+    else:
+        keywords = keywords_base
+
+    formatting = base_breakdown.get("Formatting", 60)
+    experience = base_breakdown.get("Experience", 40)
+    education = base_breakdown.get("Education", 50)
+    impact = base_breakdown.get("Impact", 30)
+
+    jd_ats = _clamp(
+        round(
+            formatting * 0.12
+            + keywords * 0.22
+            + jd_fit * 0.22
+            + experience * 0.18
+            + education * 0.08
+            + impact * 0.18
+        ),
+        25,
+        98,
+    )
+    breakdown = [
+        ScoreBreakdown(label="Job Match", score=jd_fit),
+        ScoreBreakdown(label="Formatting", score=formatting),
+        ScoreBreakdown(label="Keywords", score=keywords),
+        ScoreBreakdown(label="Experience", score=experience),
+        ScoreBreakdown(label="Education", score=education),
+        ScoreBreakdown(label="Impact", score=impact),
+    ]
+
+    detected = _detected_skills(skill_hits, sections)
+    missing_names = [s for s in required if s not in resume_has]
+    jd_label = target_role or "target"
+    missing = []
+    for i, name in enumerate(missing_names[:6]):
+        importance = ("High", "High", "Medium", "Medium", "Low", "Low")[i]
+        reason = (
+            f"Requested in the {jd_label} job description"
+            if jd_signal > 0
+            else f"Core for the {jd_label} role"
+        )
+        missing.append(MissingSkill(name=name, importance=importance, reason=reason))
+
+    general_suggestions = _suggestions(
+        sections=sections,
+        detected_count=len(detected),
+        quantified=len(_quantified_lines(text)),
+        years=years,
+        text=text,
+    )
+    jd_suggestions: list[Suggestion] = []
+    if missing_names:
+        jd_suggestions.append(
+            Suggestion(
+                title=f"Add {missing_names[0]} to match this posting",
+                detail=(
+                    f"The {jd_label} role calls for {missing_names[0]}; adding it "
+                    "with a concrete example directly raises your fit."
+                ),
+                severity="high",
+            )
+        )
+    if jd_signal > 0 and overlap < 0.8:
+        jd_suggestions.append(
+            Suggestion(
+                title="Mirror the job description's language",
+                detail=(
+                    "Weave in the JD's own keywords and required terms where "
+                    "truthful — ATS scoring favors exact phrase overlap."
+                ),
+                severity="medium",
+            )
+        )
+    jd_suggestions.append(
+        Suggestion(
+            title="Tailor your summary to this role",
+            detail=f"Lead your summary with the experience this {jd_label} posting emphasizes.",
+            severity="low",
+        )
+    )
+    seen = {s.title for s in jd_suggestions}
+    suggestions = (jd_suggestions + [s for s in general_suggestions if s.title not in seen])[:5]
+
+    roles = _recommended_roles(skill_hits, base["ats"])
+    if target_role:
+        roles.insert(0, RoleMatch(role=target_role, company="Target role", location="", match=jd_fit))
+        deduped: list[RoleMatch] = []
+        seen_roles: set[str] = set()
+        for role in roles:
+            if role.role not in seen_roles:
+                seen_roles.add(role.role)
+                deduped.append(role)
+        roles = deduped[:4]
+
+    top_skills = [s.name for s in detected[:4]]
+    skills_str = ", ".join(top_skills) if top_skills else "a strong technical toolkit"
+    match_line = (
+        f"Matched {len(matched)} of {len(required)} required skills. "
+        if required
+        else ""
+    )
+    summary = (
+        f"Fit for the {jd_label} posting: {jd_fit}/100 — {match_line}"
+        f"{candidate['title']} with {years} year{'s' if years != 1 else ''} of experience, "
+        f"strong in {skills_str}. The score blends resume quality with how well it "
+        "answers this specific job description."
+    )
+
+    return AnalysisResponse(
+        id=resume_id,
+        file_name=file_name,
+        uploaded_at=datetime.now(timezone.utc).isoformat(),
+        ats_score=jd_ats,
+        candidate=Candidate(**candidate),
+        summary=summary,
+        score_breakdown=breakdown,
+        detected_skills=detected,
+        missing_skills=missing,
+        suggestions=suggestions,
+        recommended_roles=roles,
+        keyword_trend=_keyword_trend(resume_id, jd_ats),
+        skills_radar=_skills_radar(skill_hits),
+    )
+
+
+# --------------------------------------------------------------------------- #
 # Entry point
 # --------------------------------------------------------------------------- #
 
-def analyze_resume(resume_id: str, file_name: str, text: str) -> AnalysisResponse:
+def analyze_resume(
+    resume_id: str,
+    file_name: str,
+    text: str,
+    *,
+    job_description: str | None = None,
+    target_role: str | None = None,
+) -> AnalysisResponse:
+    if job_description or target_role:
+        return _analyze_with_jd(
+            resume_id, file_name, text, job_description=job_description, target_role=target_role
+        )
+
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     sections = _detect_sections(lines)
     skill_hits = _skill_counts(text)
