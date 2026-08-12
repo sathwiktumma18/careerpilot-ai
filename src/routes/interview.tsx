@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
@@ -8,11 +8,15 @@ import {
   Lightbulb,
   ListChecks,
   MessagesSquare,
+  Mic,
   Play,
   RefreshCw,
   RotateCcw,
   Sparkles,
+  Square,
   Upload,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { RoleGate } from "@/components/auth/RoleGate";
@@ -21,6 +25,18 @@ import { EmptyState, ErrorState } from "@/components/common/EmptyState";
 import { useResumeStore, useSelectedResume } from "@/lib/store";
 import { interviewService } from "@/services/api";
 import type { Difficulty, InterviewFeedback, InterviewSession } from "@/lib/interview";
+import {
+  createRecognizer,
+  getEnglishVoices,
+  pickNaturalVoice,
+  recognitionSupported,
+  savePreferredVoice,
+  setSpeechTtsEnabled,
+  speakText,
+  speechTtsEnabled,
+  stopSpeech,
+} from "@/lib/speech";
+import type { SpeechRecognizer } from "@/lib/speech";
 
 export const Route = createFileRoute("/interview")({
   head: () => ({ meta: [{ title: "Interview AI — CareerPilot" }] }),
@@ -56,9 +72,53 @@ function InterviewPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Phase D — speech I/O (Web Speech API): TTS reads questions aloud on a
+  // natural voice (picker + on/off persisted); STT transcribes spoken answers.
+  const [ttsOn, setTtsOn] = useState(speechTtsEnabled);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voiceName, setVoiceName] = useState<string | null>(null);
+  const [listening, setListening] = useState(false);
+  const [interim, setInterim] = useState("");
+  const recognizerRef = useRef<SpeechRecognizer | null>(null);
+
   const question = session?.questions[index];
   const isLast = session != null && index === session.questions.length - 1;
   const finished = feedback != null && isLast;
+  const voice = voices.find((v) => v.name === voiceName) ?? null;
+
+  const toggleTts = () => {
+    const next = !ttsOn;
+    setTtsOn(next);
+    setSpeechTtsEnabled(next);
+    if (!next) stopSpeech();
+  };
+
+  const toggleMic = () => {
+    if (listening) {
+      recognizerRef.current?.stop();
+      return;
+    }
+    if (!recognizerRef.current) {
+      recognizerRef.current = createRecognizer({
+        onFinal: (text) => {
+          const t = text.trim();
+          if (t) setAnswer((a) => (a.trim() ? `${a.trimEnd()} ${t}` : t));
+        },
+        onInterim: setInterim,
+        onEnd: () => {
+          setListening(false);
+          setInterim("");
+        },
+        onError: () => {
+          setListening(false);
+          setInterim("");
+        },
+      });
+    }
+    setInterim("");
+    setListening(true);
+    recognizerRef.current.start();
+  };
 
   const start = async () => {
     if (!activeId || loading) return;
@@ -100,18 +160,53 @@ function InterviewPage() {
   };
 
   const next = () => {
+    recognizerRef.current?.stop();
+    setListening(false);
+    setInterim("");
+    stopSpeech();
     setFeedback(null);
     setAnswer("");
     setIndex((i) => i + 1);
   };
 
   const restart = () => {
+    recognizerRef.current?.stop();
+    setListening(false);
+    setInterim("");
+    stopSpeech();
     setSession(null);
     setFeedback(null);
     setAnswer("");
     setError(null);
     setIndex(0);
   };
+
+  // Load English voices — getVoices() can be async; refresh on voiceschanged.
+  useEffect(() => {
+    const load = () => {
+      const vs = getEnglishVoices();
+      setVoices(vs);
+      setVoiceName((prev) => {
+        if (prev && vs.some((v) => v.name === prev)) return prev;
+        return pickNaturalVoice(vs)?.name ?? null;
+      });
+    };
+    load();
+    window.speechSynthesis?.addEventListener?.("voiceschanged", load);
+    return () => window.speechSynthesis?.removeEventListener?.("voiceschanged", load);
+  }, []);
+
+  // Auto-read each question aloud when TTS is on and feedback isn't shown.
+  useEffect(() => {
+    if (ttsOn && question && !finished) {
+      void speakText(question.text, voice);
+    }
+    // Question identity drives re-speak; voice/tts are set by the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question?.id]);
+
+  // Clean up speech + recognition when leaving the page.
+  useEffect(() => () => stopSpeech(), []);
 
   return (
     <RoleGate roles={["job_seeker"]} redirectTo="/dashboard">
@@ -313,6 +408,53 @@ function InterviewPage() {
                 </span>
                 <h3 className="mt-3 text-lg font-semibold leading-snug">{question.text}</h3>
 
+                {/* Phase D — speech controls: read aloud, toggle, and pick a voice. */}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => void speakText(question.text, voice)}
+                    disabled={!ttsOn}
+                    title={!ttsOn ? "Turn sound on first" : "Read this question aloud"}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card/50 px-2.5 py-1.5 text-xs transition hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Volume2 className="h-3.5 w-3.5" /> Read aloud
+                  </button>
+                  <button
+                    onClick={toggleTts}
+                    title={ttsOn ? "Mute the reader" : "Unmute the reader"}
+                    className={
+                      "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition " +
+                      (ttsOn
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-border bg-card/50 text-muted-foreground hover:text-foreground")
+                    }
+                  >
+                    {ttsOn ? (
+                      <Volume2 className="h-3.5 w-3.5" />
+                    ) : (
+                      <VolumeX className="h-3.5 w-3.5" />
+                    )}
+                    {ttsOn ? "Sound on" : "Sound off"}
+                  </button>
+                  {voices.length > 0 && (
+                    <select
+                      value={voiceName ?? ""}
+                      onChange={(e) => {
+                        setVoiceName(e.target.value);
+                        savePreferredVoice(e.target.value);
+                      }}
+                      title="Pick a voice for the AI interviewer"
+                      aria-label="Interviewer voice"
+                      className="h-8 max-w-[220px] rounded-lg border border-input bg-card px-2 text-xs outline-none focus:border-primary"
+                    >
+                      {voices.map((v) => (
+                        <option key={v.name} value={v.name}>
+                          {v.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
                 <details className="mt-3 text-xs text-muted-foreground">
                   <summary className="cursor-pointer select-none">
                     What a strong answer covers
@@ -388,15 +530,52 @@ function InterviewPage() {
                       onChange={(e) => setAnswer(e.target.value)}
                       rows={8}
                       placeholder={
-                        "Type your answer… Try STAR: Situation, Task, Action, Result. " +
+                        "Type or speak your answer… Try STAR: Situation, Task, Action, Result. " +
                         "Name trade-offs and back claims with numbers."
                       }
                       className="w-full resize-y rounded-xl border border-border bg-card/50 p-3 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
                     />
-                    <div className="mt-3 flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">
-                        {answer.trim().length ? `${answer.trim().split(/\s+/).length} words` : " "}
-                      </span>
+                    {/* Phase D — STT: live transcript while the user speaks. */}
+                    {(listening || interim) && (
+                      <div className="mt-2 flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
+                        <span className="relative flex h-2.5 w-2.5 shrink-0">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+                        </span>
+                        <span className="min-w-0 flex-1 truncate">{interim || "Listening…"}</span>
+                      </div>
+                    )}
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        {recognitionSupported() ? (
+                          <button
+                            onClick={toggleMic}
+                            title={listening ? "Stop listening" : "Speak your answer"}
+                            className={
+                              "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition " +
+                              (listening
+                                ? "border-red-500/40 bg-red-500/10 text-red-500"
+                                : "border-border bg-card/50 hover:border-primary/40 hover:text-foreground")
+                            }
+                          >
+                            {listening ? (
+                              <Square className="h-3.5 w-3.5" />
+                            ) : (
+                              <Mic className="h-3.5 w-3.5" />
+                            )}
+                            {listening ? "Stop" : "Speak answer"}
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground">
+                            Speech input needs Chrome, Edge or Safari.
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {answer.trim().length
+                            ? `${answer.trim().split(/\s+/).length} words`
+                            : " "}
+                        </span>
+                      </div>
                       <button
                         onClick={() => void score()}
                         disabled={loading || !answer.trim()}
