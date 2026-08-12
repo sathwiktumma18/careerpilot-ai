@@ -1,11 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.config.settings import settings
 from app.database.session import get_db
 from app.models.user import User
-from app.schemas.job_match import JobLite, JobMatchRequest, JobMatchResponse
+from app.schemas.job_match import (
+    JobLite,
+    JobMatchRequest,
+    JobMatchResponse,
+    LiveJob,
+    LiveJobSearchResponse,
+)
 from app.services.auth_service import get_current_user
 from app.services.job_match_service import JobMatchError, list_jobs, match_resume
+from app.services.jobs_api import LiveJob as LiveJobData
+from app.services.jobs_api import search_live_jobs
 from app.services.resume_service import ResumeNotFoundError
 from app.services.seeker_service import record_activity
 
@@ -48,3 +57,26 @@ async def match_endpoint(
 @router.get("/jobs", response_model=list[JobLite])
 async def jobs_endpoint(user: User = Depends(get_current_user)) -> list[JobLite]:
     return [JobLite.model_validate(j) for j in list_jobs()]
+
+
+@router.get("/jobs/search", response_model=LiveJobSearchResponse)
+async def jobs_search_endpoint(
+    query: str = Query(..., min_length=2, max_length=80, description="Job title / role to search"),
+    location: str = Query("", max_length=80, description="Optional city / region"),
+    remote_only: bool = Query(False),
+    limit: int = Query(10, ge=1, le=30),
+    user: User = Depends(get_current_user),
+) -> LiveJobSearchResponse:
+    """Live postings from JSearch (India-first, ≤4 weeks old), or a graceful
+    `available=False` when the key is missing / the API is unreachable."""
+    jobs: list[LiveJobData]
+    jobs, available = await search_live_jobs(
+        query, location=location, remote_only=remote_only, limit=limit
+    )
+    return LiveJobSearchResponse(
+        query=query,
+        location=location,
+        jobs=[LiveJob.model_validate(j.__dict__) for j in jobs],
+        available=available,
+        posted_within_days=settings.jsearch_max_age_days,
+    )

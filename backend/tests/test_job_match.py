@@ -178,3 +178,24 @@ def test_service_unknown_resume_raises_not_found(auth):
             asyncio.run(match_resume(db, "missing", user_id=auth()["user_id"]))
     finally:
         db.close()
+
+
+def test_jobs_search_graceful_fallback_without_key(client, auth):
+    """With no JSEARCH key configured, the endpoint answers available=False so
+    the frontend can explain live jobs are off (never a hard error)."""
+    resp = client.get(
+        "/api/jobs/search",
+        params={"query": "React developer", "location": "Bengaluru"},
+        headers=auth()["headers"],
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["available"] is False
+    assert body["jobs"] == []
+    assert body["query"] == "React developer"
+    assert body["posted_within_days"] == 28
+
+
+def test_jobs_search_validates_query(client, auth):
+    resp = client.get("/api/jobs/search", params={"query": "a"}, headers=auth()["headers"])
+    assert resp.status_code == 422  # min_length=2

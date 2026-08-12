@@ -50,3 +50,34 @@ class JobLite(BaseModel):
     category: str
     skills_count: int
     description: str
+
+
+class LiveJob(BaseModel):
+    """A posting returned from the live JSearch adapter."""
+
+    job_id: str
+    title: str
+    company: str
+    location: str
+    remote: bool
+    salary_min: int | None
+    salary_max: int | None
+    salary_period: str | None
+    apply_link: str | None
+    posted_at: str
+    employment_type: str | None
+    india: bool
+
+
+class LiveJobSearchResponse(BaseModel):
+    """Result of a live-jobs query.
+
+    `available` is False when the JSearch key is missing or the API failed —
+    the frontend then explains that live jobs are off and shows the corpus.
+    """
+
+    query: str
+    location: str
+    jobs: list[LiveJob]
+    available: bool
+    posted_within_days: int

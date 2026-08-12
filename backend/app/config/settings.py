@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
 
+    # --- Live jobs (JSearch on RapidAPI, free tier ≈100 req/mo) ---
+    # Leave JSEARCH_API_KEY empty to disable live jobs — Job Match then falls
+    # back to the curated corpus with a "live jobs unavailable" flag.
+    jsearch_api_key: str | None = None
+    jsearch_api_host: str = "jsearch.p.rapidapi.com"
+    # Live postings older than this many days are dropped (requirement: ≤4 weeks).
+    jsearch_max_age_days: int = 28
+
     # Where uploaded PDFs and the analysis output live (git-ignored).
     upload_dir: str = str(DATA_DIR / "uploads")
 

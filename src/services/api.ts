@@ -23,10 +23,12 @@ import { mapAnalysisFromApi, type ApiAnalysis } from "@/lib/analysis-mapper";
 import {
   mapJobLiteFromApi,
   mapJobMatchFromApi,
+  mapLiveJobSearchFromApi,
   type ApiJobLite,
   type ApiJobMatchResponse,
+  type ApiLiveJobSearchResponse,
 } from "@/lib/job-match-mapper";
-import type { JobLite, JobMatchResponse } from "@/lib/job-match";
+import type { JobLite, JobMatchResponse, LiveJobSearchResponse } from "@/lib/job-match";
 import {
   mapInterviewFeedbackFromApi,
   mapInterviewSessionFromApi,
@@ -618,6 +620,25 @@ export const jobMatchService = {
   async listJobs(): Promise<JobLite[]> {
     const raw = await request<ApiJobLite[]>("/jobs");
     return (raw ?? []).map(mapJobLiteFromApi);
+  },
+
+  /** Live postings from JSearch — India-first, ≤4 weeks old. Graceful: the
+   *  response carries `available: false` when the key is missing / rate-limited,
+   *  and the UI then shows a fallback note instead of an error. */
+  async searchLiveJobs(params: {
+    query: string;
+    location?: string;
+    remoteOnly?: boolean;
+    limit?: number;
+  }): Promise<LiveJobSearchResponse> {
+    const qs = new URLSearchParams({
+      query: params.query,
+      location: params.location ?? "",
+      remote_only: String(params.remoteOnly ?? false),
+      limit: String(params.limit ?? 10),
+    });
+    const raw = await request<ApiLiveJobSearchResponse>(`/jobs/search?${qs.toString()}`);
+    return mapLiveJobSearchFromApi(raw);
   },
 };
 

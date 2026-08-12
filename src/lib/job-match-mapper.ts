@@ -2,7 +2,7 @@
  * Maps the backend's snake_cased job-match payload onto the camelCase
  * `JobMatchResponse` domain shape. Mirrors `analysis-mapper.ts`.
  */
-import type { JobLite, JobMatchResponse } from "./job-match";
+import type { JobLite, JobMatchResponse, LiveJob, LiveJobSearchResponse } from "./job-match";
 
 export interface ApiJobMatchResult {
   job_id: string;
@@ -77,5 +77,57 @@ export function mapJobLiteFromApi(raw: ApiJobLite): JobLite {
     category: raw.category,
     skillsCount: raw.skills_count,
     description: raw.description,
+  };
+}
+
+/* ------------------------------ Live jobs (Phase C) ------------------------------ */
+
+export interface ApiLiveJob {
+  job_id: string;
+  title: string;
+  company: string;
+  location: string;
+  remote: boolean;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_period: "yearly" | "hourly" | null;
+  apply_link: string | null;
+  posted_at: string;
+  employment_type: string | null;
+  india: boolean;
+}
+
+export interface ApiLiveJobSearchResponse {
+  query: string;
+  location: string;
+  jobs: ApiLiveJob[];
+  available: boolean;
+  posted_within_days: number;
+}
+
+export function mapLiveJobFromApi(raw: ApiLiveJob): LiveJob {
+  return {
+    jobId: raw.job_id,
+    title: raw.title,
+    company: raw.company,
+    location: raw.location,
+    remote: raw.remote,
+    salaryMin: raw.salary_min,
+    salaryMax: raw.salary_max,
+    salaryPeriod: raw.salary_period,
+    applyLink: raw.apply_link,
+    postedAt: raw.posted_at,
+    employmentType: raw.employment_type,
+    india: raw.india,
+  };
+}
+
+export function mapLiveJobSearchFromApi(raw: ApiLiveJobSearchResponse): LiveJobSearchResponse {
+  return {
+    query: raw.query,
+    location: raw.location,
+    jobs: (raw.jobs ?? []).map(mapLiveJobFromApi),
+    available: raw.available,
+    postedWithinDays: raw.posted_within_days,
   };
 }

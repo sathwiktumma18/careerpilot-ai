@@ -41,3 +41,29 @@ export type JobLite = {
   skillsCount: number;
   description: string;
 };
+
+/** A live posting returned by the JSearch adapter (Phase C). */
+export type LiveJob = {
+  jobId: string;
+  title: string;
+  company: string;
+  location: string;
+  remote: boolean;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryPeriod: "yearly" | "hourly" | null;
+  applyLink: string | null;
+  /** ISO-8601 datetime — the posting date, always surfaced. */
+  postedAt: string;
+  employmentType: string | null;
+  india: boolean;
+};
+
+export type LiveJobSearchResponse = {
+  query: string;
+  location: string;
+  jobs: LiveJob[];
+  /** False when the JSEARCH key is missing or the API failed → show fallback note. */
+  available: boolean;
+  postedWithinDays: number;
+};

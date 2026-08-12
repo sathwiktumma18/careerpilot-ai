@@ -4,11 +4,16 @@ import { motion } from "framer-motion";
 import {
   BadgeCheck,
   Briefcase,
+  Building2,
   ChevronDown,
   CircleAlert,
+  Clock,
+  ExternalLink,
   Globe,
+  Loader2,
   MapPin,
   RefreshCw,
+  Search,
   Sparkles,
   Upload,
   Wallet,
@@ -20,7 +25,7 @@ import { EmptyState, ErrorState } from "@/components/common/EmptyState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useResumeStore, useSelectedResume } from "@/lib/store";
 import { jobMatchService } from "@/services/api";
-import type { JobMatchResponse } from "@/lib/job-match";
+import type { JobMatchResponse, LiveJob } from "@/lib/job-match";
 
 export const Route = createFileRoute("/jobmatch")({
   head: () => ({ meta: [{ title: "JobMatch AI — CareerPilot" }] }),
@@ -39,8 +44,40 @@ function JobMatchPage() {
   const [jdText, setJdText] = useState("");
   const [jdScored, setJdScored] = useState(false);
 
+  // Live jobs (Phase C) — real postings from JSearch, India-first, ≤4 weeks old.
+  const [liveQuery, setLiveQuery] = useState("");
+  const [liveLocation, setLiveLocation] = useState("");
+  const [liveJobs, setLiveJobs] = useState<LiveJob[] | null>(null);
+  const [liveAvailable, setLiveAvailable] = useState<boolean | null>(null);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveSearched, setLiveSearched] = useState(false);
+  const [livePostedWithinDays, setLivePostedWithinDays] = useState(28);
+
   const analyzed = resumes.filter((r) => r.analysis.atsScore > 0);
   const activeId = selected && selected.analysis.atsScore > 0 ? selected.id : analyzed[0]?.id;
+
+  const runLiveSearch = async (query?: string, location?: string) => {
+    const q = (query ?? liveQuery).trim();
+    if (!q) return;
+    setLiveLoading(true);
+    setLiveSearched(true);
+    try {
+      const res = await jobMatchService.searchLiveJobs({
+        query: q,
+        location: location ?? liveLocation,
+        remoteOnly,
+        limit: 10,
+      });
+      setLiveJobs(res.jobs);
+      setLiveAvailable(res.available);
+      setLivePostedWithinDays(res.postedWithinDays);
+    } catch {
+      setLiveJobs([]);
+      setLiveAvailable(false);
+    } finally {
+      setLiveLoading(false);
+    }
+  };
 
   const runMatch = async (opts?: { jd?: string }) => {
     if (!activeId) return;
@@ -55,6 +92,12 @@ function JobMatchPage() {
       });
       setResponse(result);
       if (opts?.jd) setJdScored(true);
+      // After a match, pull live postings for the resume's headline role so
+      // the page shows real, apply-able jobs right away.
+      if (!liveQuery.trim()) {
+        setLiveQuery(result.resumeTitle);
+        void runLiveSearch(result.resumeTitle);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Matching failed — is the backend running?");
     } finally {
@@ -113,6 +156,87 @@ function JobMatchPage() {
           <div className="mt-6 grid gap-4 lg:grid-cols-3">
             {/* Results column */}
             <div className="lg:col-span-2">
+              {/* Live jobs — real postings from JSearch with Apply links. */}
+              <div className="glass mb-5 rounded-2xl p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Globe className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Live jobs from across the web</h3>
+                  {liveSearched && liveAvailable && (
+                    <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                      <Clock className="h-3 w-3" /> posted ≤ {livePostedWithinDays} days
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Real postings from job boards (Naukri, Indeed, Google listings…), India first.
+                  Apply straight from here — no login required.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="relative min-w-0 flex-1 basis-52">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+                    <input
+                      value={liveQuery}
+                      onChange={(e) => setLiveQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && void runLiveSearch()}
+                      placeholder="Job title, e.g. Frontend Engineer"
+                      className="h-10 w-full rounded-xl border border-input bg-card/60 pl-9 pr-3 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                  <div className="relative min-w-0 basis-40 flex-1">
+                    <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+                    <input
+                      value={liveLocation}
+                      onChange={(e) => setLiveLocation(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && void runLiveSearch()}
+                      placeholder="Location, e.g. Bengaluru"
+                      className="h-10 w-full rounded-xl border border-input bg-card/60 pl-9 pr-3 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                  <button
+                    onClick={() => void runLiveSearch()}
+                    disabled={liveLoading || !liveQuery.trim()}
+                    className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card/60 px-4 text-sm transition hover:border-primary/40 hover:bg-card disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {liveLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
+                    )}
+                    {liveLoading ? "Searching…" : "Search live jobs"}
+                  </button>
+                </div>
+
+                {liveSearched && liveAvailable === false && (
+                  <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-xs text-muted-foreground">
+                    <span className="font-medium text-amber-500">Live jobs are off right now.</span>{" "}
+                    Add a free{" "}
+                    <code className="rounded bg-card/60 px-1 py-0.5 text-[11px]">
+                      JSEARCH_API_KEY
+                    </code>{" "}
+                    to{" "}
+                    <code className="rounded bg-card/60 px-1 py-0.5 text-[11px]">backend/.env</code>{" "}
+                    (RapidAPI, ≈100 req/mo) to browse real postings — showing curated matches below
+                    for now.
+                  </div>
+                )}
+
+                {liveLoading ? (
+                  <div className="mt-3">
+                    <LoadingState label="Fetching live postings…" />
+                  </div>
+                ) : liveJobs && liveJobs.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {liveJobs.map((job) => (
+                      <LiveJobCard key={job.jobId} job={job} />
+                    ))}
+                  </div>
+                ) : liveSearched && liveAvailable ? (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    No live postings matched — try a different title or location.
+                  </p>
+                ) : null}
+              </div>
+
               {resumes.length > 1 && (
                 <div className="mb-4 flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">Resume:</span>
@@ -374,4 +498,71 @@ function MatchDot({ tone }: { tone: keyof typeof TONES }) {
 
 function formatSalary(value: number): string {
   return value >= 1000 ? `$${Math.round(value / 1000)}k` : `$${value}`;
+}
+
+/* ------------------------- Live jobs (Phase C) ------------------------- */
+
+function LiveJobCard({ job }: { job: LiveJob }) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-border bg-card/40 p-3 transition hover:border-primary/40">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Building2 className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="truncate text-sm font-semibold">{job.title}</span>
+          {job.india && (
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+              India
+            </span>
+          )}
+          {job.remote && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-500">
+              <Globe className="h-3 w-3" /> Remote
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground/80">{job.company || "—"}</span>
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="h-3 w-3" /> {job.location || "Unknown location"}
+          </span>
+          <span className="inline-flex items-center gap-1 text-emerald-500">
+            <Clock className="h-3 w-3" /> {formatPosted(job.postedAt)}
+          </span>
+          {job.salaryMin != null && job.salaryMax != null && (
+            <span className="inline-flex items-center gap-1 text-emerald-500">
+              <Wallet className="h-3 w-3" /> {formatLiveSalary(job)}
+            </span>
+          )}
+        </div>
+      </div>
+      <a
+        href={job.applyLink ?? "#"}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-1.5 text-xs font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90"
+      >
+        Apply <ExternalLink className="h-3 w-3" />
+      </a>
+    </div>
+  );
+}
+
+function formatPosted(iso: string): string {
+  const posted = new Date(iso);
+  if (Number.isNaN(posted.getTime())) return "Recently";
+  const days = Math.max(0, Math.floor((Date.now() - posted.getTime()) / 86_400_000));
+  if (days <= 0) return "Posted today";
+  if (days === 1) return "Posted yesterday";
+  return `Posted ${days} days ago`;
+}
+
+function formatLiveSalary(job: LiveJob): string {
+  const { salaryMin, salaryMax, salaryPeriod } = job;
+  if (salaryMin == null && salaryMax == null) return "";
+  const fmt = (v: number) =>
+    salaryPeriod === "hourly" ? `$${v.toLocaleString()}/hr` : formatSalary(v);
+  if (salaryMin != null && salaryMax != null) return `${fmt(salaryMin)}–${fmt(salaryMax)}`;
+  return salaryMin != null ? fmt(salaryMin) : fmt(salaryMax ?? 0);
 }
