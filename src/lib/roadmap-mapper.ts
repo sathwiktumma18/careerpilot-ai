@@ -27,6 +27,7 @@ export interface ApiRoadmapPlan {
   target_skills: string[];
   phases: ApiRoadmapPhase[];
   generated_by: "gemini" | "template";
+  typed_role?: string | null;
 }
 
 export function mapRoadmapFromApi(raw: ApiRoadmapPlan): RoadmapPlan {
@@ -37,6 +38,7 @@ export function mapRoadmapFromApi(raw: ApiRoadmapPlan): RoadmapPlan {
     targetSkills: raw.target_skills ?? [],
     phases: (raw.phases ?? []).map(mapRoadmapPhaseFromApi),
     generatedBy: raw.generated_by,
+    typedRole: raw.typed_role ?? null,
   };
 }
 

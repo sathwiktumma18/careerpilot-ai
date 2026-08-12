@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
-from app.services.roadmap_service import _detect_category, _gap_skills, generate_roadmap
+from app.services.roadmap_service import _detect_category, _gap_skills, _resolve_role, generate_roadmap
 
 from tests.fixtures import resume_pdf_bytes
 
@@ -174,3 +174,53 @@ def test_roadmap_detect_category():
     assert _detect_category("Platform Engineer") == "platform"
     assert _detect_category("ML Engineer") == "ml"
     assert _detect_category("Unrelated Role") is None
+
+
+# --------------------------------------------------------------------------- #
+# Phase E — typo tolerance
+# --------------------------------------------------------------------------- #
+
+def test_resolve_role_corrects_misspellings():
+    """A typo'd role maps onto the closest canonical track."""
+    assert _resolve_role("Frntend Engineer") == ("Frontend Engineer", "frontend")
+    assert _resolve_role("Bckend Devloper")[1] == "backend"
+    assert _resolve_role("Full Stak Developer")[1] == "full stack"
+    # A typo that keeps the track keyword still routes to the right track.
+    assert _detect_category("Data Scienstist") == "data"
+    assert _detect_category("Devops Enginner") == "devops"
+
+
+def test_resolve_role_keeps_known_tracks_untouched():
+    """Already-recognizable roles need no correction (no canonical phrase back)."""
+    assert _resolve_role("Frontend Engineer") == (None, None)
+    assert _resolve_role("Senior Full Stack Engineer") == (None, None)
+    assert _resolve_role("ML Engineer") == (None, None)
+
+
+def test_resolve_role_rejects_gibberish():
+    assert _resolve_role("xyzzy plugh") == (None, None)
+    assert _resolve_role("") == (None, None)
+
+
+def test_typo_roadmap_uses_corrected_track(client, auth):
+    """A misspelled role still plans for the right skills and reports the fix."""
+    resp = client.post(
+        "/api/roadmap",
+        json={"target_role": "Frntend Engineer", "horizon": 8},
+        headers=auth()["headers"],
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["target_role"] == "Frontend Engineer"
+    assert body["typed_role"] == "Frntend Engineer"
+    assert "React" in body["target_skills"]
+
+
+def test_correct_role_has_no_typed_note(client, auth):
+    resp = client.post(
+        "/api/roadmap",
+        json={"target_role": "Backend Engineer", "horizon": 8},
+        headers=auth()["headers"],
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["typed_role"] is None

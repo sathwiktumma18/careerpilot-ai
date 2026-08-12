@@ -196,6 +196,18 @@ function RoadmapPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-8"
               >
+                {/* Typo tolerance — tell the user their role was corrected. */}
+                {plan.typedRole && plan.typedRole !== plan.targetRole && (
+                  <div className="flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground/80">
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span>
+                      You typed <span className="font-semibold">“{plan.typedRole}”</span> — planning
+                      for <span className="font-semibold text-primary">“{plan.targetRole}”</span>{" "}
+                      instead.
+                    </span>
+                  </div>
+                )}
+
                 {/* Phase track */}
                 <div className="glass rounded-2xl p-5">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">

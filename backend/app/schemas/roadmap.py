@@ -32,3 +32,6 @@ class RoadmapResponse(BaseModel):
     target_skills: list[str]
     phases: list[RoadmapPhase]
     generated_by: Literal["gemini", "template"]
+    # Set when a typo was corrected: the user's original input, so the UI can
+    # show "you typed X → planned for Y". None when no correction happened.
+    typed_role: str | None = None

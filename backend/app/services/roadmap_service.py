@@ -6,8 +6,10 @@ return the same RoadmapResponse shape so the UI renders one way.
 """
 from __future__ import annotations
 
+import difflib
 import json
 import logging
+import re
 
 from sqlalchemy.orm import Session
 
@@ -50,11 +52,78 @@ def _detect_category(role: str) -> str | None:
     return None
 
 
-def _gap_skills(role: str, resume_skills: list[str]) -> list[str]:
-    """Skills the target role needs that the resume does not yet show."""
+# --------------------------------------------------------------------------- #
+# Typo tolerance (Phase E) — fuzzy-match a misspelled target role onto a track
+# --------------------------------------------------------------------------- #
+
+# Canonical role phrases per track. The fuzzy matcher maps input close to one
+# of these onto that track, so "frntend engineer" still plans as Frontend.
+_ROLE_PHRASES: dict[str, tuple[str, ...]] = {
+    "frontend": ("Frontend Engineer", "Frontend Developer", "UI Developer", "React Developer", "Web Developer"),
+    "full stack": ("Full Stack Engineer", "Full Stack Developer", "MERN Stack Developer", "MEAN Stack Developer"),
+    "backend": ("Backend Engineer", "Backend Developer", "Java Developer", "Python Developer", "Node.js Developer", "API Engineer", "Server Engineer"),
+    "devops": ("DevOps Engineer", "Site Reliability Engineer", "Cloud Engineer", "Platform Engineer", "SRE", "Infrastructure Engineer"),
+    "data": ("Data Engineer", "Data Analyst", "Analytics Engineer", "Data Scientist", "Database Engineer"),
+    "ml": ("Machine Learning Engineer", "ML Engineer", "AI Engineer", "Deep Learning Engineer", "LLM Engineer"),
+    "product": ("Product Manager", "Technical Product Manager", "Product Owner", "Program Manager"),
+    "design": ("Product Designer", "UX Designer", "UI Designer", "UX/UI Designer", "Design Engineer"),
+}
+
+# Minimum confidence before a typo is treated as resolved.
+_ROLE_MATCH_THRESHOLD = 0.6
+
+
+def _normalize_role_text(role: str) -> str:
+    """Lowercase, drop punctuation, collapse whitespace — for comparing role names."""
+    cleaned = re.sub(r"[^a-z0-9+# .-]", " ", role.lower())
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def _resolve_role(role: str) -> tuple[str | None, str | None]:
+    """Fuzzy-match `role` to a canonical track.
+
+    Returns (canonical_phrase, track_key), or (None, None) when the input maps
+    directly to a track by substring (no correction needed) or matches nothing
+    confidently. `canonical_phrase` is the cleaned display name to plan for.
+    """
+    normalized = _normalize_role_text(role)
+    if not normalized:
+        return None, None
+
+    # Already a known track by substring — the existing behaviour, unchanged.
+    if _detect_category(role):
+        return None, None
+
+    best_key: str | None = None
+    best_phrase: str | None = None
+    best_score = 0.0
+    for key, phrases in _ROLE_PHRASES.items():
+        for phrase in phrases:
+            norm = _normalize_role_text(phrase)
+            ratio = difflib.SequenceMatcher(None, normalized, norm).ratio()
+            # Token overlap catches reordered/"developer vs engineer" phrasing.
+            in_tokens = set(normalized.split())
+            phrase_tokens = set(norm.split())
+            overlap = len(in_tokens & phrase_tokens) / max(len(in_tokens | phrase_tokens), 1)
+            score = max(ratio, overlap)
+            if score > best_score:
+                best_key, best_phrase, best_score = key, phrase, score
+
+    if best_key is not None and best_score >= _ROLE_MATCH_THRESHOLD:
+        return best_phrase, best_key
+    return None, None
+
+
+def _gap_skills(role: str, resume_skills: list[str], *, track: str | None = None) -> list[str]:
+    """Skills the target role needs that the resume does not yet show.
+
+    `track` overrides the role-derived track (used once a typo has been
+    resolved to a canonical role phrase).
+    """
     known = {normalize_name(s) for s in resume_skills}
-    track = _ROLE_SKILLS.get(_detect_category(role) or "", _GENERIC_SKILLS)
-    gaps = [s for s in track if normalize_name(s) not in known]
+    key = track or _detect_category(role) or ""
+    track_skills = _ROLE_SKILLS.get(key, _GENERIC_SKILLS)
+    gaps = [s for s in track_skills if normalize_name(s) not in known]
     return gaps[:_MAX_GAP_SKILLS]
 
 
@@ -225,17 +294,34 @@ async def generate_roadmap(
         if cv and cv.analysis:
             resume_skills = [s["name"] for s in cv.analysis.get("detected_skills", [])]
 
-    gaps = _gap_skills(target_role, resume_skills)
+    # Typo tolerance: misspellings map onto the closest known role track, and
+    # the plan (prompt + gap detection) is built for the corrected role.
+    resolved_phrase, resolved_track = _resolve_role(target_role)
+    working_role = resolved_phrase or target_role
+    gaps = (
+        _gap_skills(target_role, resume_skills, track=resolved_track)
+        if resolved_track
+        else _gap_skills(target_role, resume_skills)
+    )
 
     if settings.gemini_api_key:
         try:
             raw = await ai_provider.generate_text(
-                _roadmap_prompt(target_role, resume_skills, gaps, horizon),
+                _roadmap_prompt(working_role, resume_skills, gaps, horizon),
                 json_mode=True,
                 temperature=0.5,
             )
-            return _parse_roadmap(raw, target_role, horizon)
+            plan = _parse_roadmap(raw, working_role, horizon)
+            return _attach_typed_role(plan, target_role, working_role)
         except (ai_provider.ProviderError, ValueError, json.JSONDecodeError, KeyError, TypeError):
             logger.warning("Gemini roadmap generation failed; using template", exc_info=True)
 
-    return _template_roadmap(target_role, gaps, horizon)
+    plan = _template_roadmap(working_role, gaps, horizon)
+    return _attach_typed_role(plan, target_role, working_role)
+
+
+def _attach_typed_role(plan: RoadmapResponse, typed: str, resolved: str) -> RoadmapResponse:
+    """Expose the user's original input when the plan targeted a corrected role."""
+    if resolved != typed:
+        plan.typed_role = typed
+    return plan

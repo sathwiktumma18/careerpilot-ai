@@ -26,4 +26,6 @@ export type RoadmapPlan = {
   targetSkills: string[];
   phases: RoadmapPhase[];
   generatedBy: "gemini" | "template";
+  /** The user's original input when a typo was corrected (≠ targetRole). */
+  typedRole?: string | null;
 };
