@@ -20,6 +20,13 @@ export interface ApiPortfolio {
   recommended_roles: { role: string; company: string; location: string; match: number }[];
   resume_file_name: string;
   updated_at: string;
+  is_recruiter?: boolean;
+  company?: string | null;
+  company_role?: string | null;
+  avatar_url?: string | null;
+  linkedin_url?: string | null;
+  github_url?: string | null;
+  portfolio_url?: string | null;
 }
 
 export interface ApiMyPortfolio {
@@ -47,5 +54,12 @@ export function mapPortfolioFromApi(raw: ApiPortfolio): PortfolioProfile {
     recommendedRoles: raw.recommended_roles ?? [],
     resumeFileName: raw.resume_file_name,
     updatedAt: raw.updated_at,
+    isRecruiter: raw.is_recruiter ?? false,
+    company: raw.company ?? null,
+    companyRole: raw.company_role ?? null,
+    avatarUrl: raw.avatar_url ?? null,
+    linkedinUrl: raw.linkedin_url ?? null,
+    githubUrl: raw.github_url ?? null,
+    portfolioUrl: raw.portfolio_url ?? null,
   };
 }

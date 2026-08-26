@@ -28,6 +28,13 @@ export type User = {
   location: string;
   bio: string;
   yearsExperience: number;
+  /** Phase F — profile photo + social/company identity (backend-persisted). */
+  avatarUrl?: string | null;
+  linkedinUrl?: string | null;
+  githubUrl?: string | null;
+  portfolioUrl?: string | null;
+  company?: string | null;
+  companyRole?: string | null;
 };
 
 type AuthState = {
@@ -261,51 +268,6 @@ export function useSelectedResume(): ResumeRecord | null {
     return s.resumes.find((r) => r.id === s.selectedId) ?? s.resumes[0];
   });
 }
-
-/* -------------------------------------------------------------------------- */
-/* Settings                                                                   */
-/* -------------------------------------------------------------------------- */
-
-export type Settings = {
-  workspaceName: string;
-  subdomain: string;
-  supportEmail: string;
-  timezone: string;
-  aiModel: "Standard" | "Pro" | "Ultra";
-  emailNotifications: boolean;
-  weeklyDigest: boolean;
-};
-
-const defaultSettings: Settings = {
-  workspaceName: "Alex Morgan",
-  subdomain: "alex.careerpilot.ai",
-  supportEmail: "alex@example.com",
-  timezone: "Europe / Berlin",
-  aiModel: "Pro",
-  emailNotifications: true,
-  weeklyDigest: true,
-};
-
-type SettingsState = {
-  settings: Settings;
-  save: (patch: Partial<Settings>) => void;
-  reset: () => void;
-};
-
-export const useSettingsStore = create<SettingsState>()(
-  persist(
-    (set) => ({
-      settings: defaultSettings,
-      save(patch) {
-        set((s) => ({ settings: { ...s.settings, ...patch } }));
-      },
-      reset() {
-        set({ settings: defaultSettings });
-      },
-    }),
-    { name: "careerpilot.settings", storage: createJSONStorage(() => localStorage) },
-  ),
-);
 
 /* -------------------------------------------------------------------------- */
 /* Notifications                                                              */

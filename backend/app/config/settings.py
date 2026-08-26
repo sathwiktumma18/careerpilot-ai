@@ -66,6 +66,11 @@ class Settings(BaseSettings):
 
     # Where uploaded PDFs and the analysis output live (git-ignored).
     upload_dir: str = str(DATA_DIR / "uploads")
+    # Where profile photos are stored (git-ignored). Served publicly so `<img>`
+    # tags (messages, candidate lists, portfolios) can render them without auth.
+    avatar_dir: str = str(DATA_DIR / "avatars")
+    # Uploaded image size cap (5 MB) — enough for any reasonable profile photo.
+    avatar_max_bytes: int = 5 * 1024 * 1024
 
 
 settings = Settings()
@@ -75,5 +80,6 @@ settings = Settings()
 try:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
+    Path(settings.avatar_dir).mkdir(parents=True, exist_ok=True)
 except OSError:
     pass  # Postgres setups don't need local dirs; errors surface at startup.

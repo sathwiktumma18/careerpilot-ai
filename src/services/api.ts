@@ -8,11 +8,9 @@
 import {
   useAuthStore,
   useResumeStore,
-  useSettingsStore,
   useNotificationStore,
   type ResumeRecord,
   type ResumeVersionLite,
-  type Settings,
   type User,
   type UserRole,
   type NotificationItem,
@@ -432,25 +430,94 @@ export const resumeService = {
 
 /* -------------------------------- Profile --------------------------------- */
 
+/** Backend `/api/profile` payload (snake_case over the wire). */
+export interface ApiProfile {
+  user_id: string;
+  name: string;
+  email: string;
+  role: string;
+  plan: string;
+  avatar_url: string | null;
+  headline: string | null;
+  location: string | null;
+  bio: string | null;
+  years_experience: number | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
+  company: string | null;
+  company_role: string | null;
+}
+
+export type ProfilePatch = Partial<
+  Pick<
+    ApiProfile,
+    | "name"
+    | "headline"
+    | "location"
+    | "bio"
+    | "years_experience"
+    | "linkedin_url"
+    | "github_url"
+    | "portfolio_url"
+    | "company"
+    | "company_role"
+  >
+> & { avatar?: "clear" };
+
+/** Turn the backend's relative `/api/...` avatar path into a loadable URL. */
+export function avatarSrc(avatarUrl?: string | null): string | undefined {
+  if (!avatarUrl) return undefined;
+  if (/^https?:\/\//.test(avatarUrl)) return avatarUrl;
+  // BASE_URL is "…/api"; the avatar path already starts with "/api/…".
+  const origin = BASE_URL.replace(/\/api\/?$/, "");
+  return `${origin}${avatarUrl}`;
+}
+
+/** Sync the auth store's user with the backend's canonical profile fields. */
+function syncUserFromProfile(profile: ApiProfile): void {
+  const user = useAuthStore.getState().user;
+  if (!user) return;
+  useAuthStore.getState().updateProfile({
+    name: profile.name,
+    title: profile.headline ?? user.title,
+    location: profile.location ?? user.location,
+    bio: profile.bio ?? user.bio,
+    yearsExperience: profile.years_experience ?? user.yearsExperience,
+    avatarUrl: profile.avatar_url,
+    linkedinUrl: profile.linkedin_url,
+    githubUrl: profile.github_url,
+    portfolioUrl: profile.portfolio_url,
+    company: profile.company,
+    companyRole: profile.company_role,
+  });
+}
+
 export const profileService = {
-  async get(): Promise<User | null> {
-    return useAuthStore.getState().user;
+  async get(): Promise<ApiProfile> {
+    const profile = await request<ApiProfile>("/profile", { method: "GET" });
+    syncUserFromProfile(profile);
+    return profile;
   },
-  async update(patch: Partial<User>): Promise<User | null> {
-    useAuthStore.getState().updateProfile(patch);
-    return useAuthStore.getState().user;
+  async update(patch: ProfilePatch): Promise<ApiProfile> {
+    const profile = await request<ApiProfile>("/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    syncUserFromProfile(profile);
+    return profile;
   },
-};
-
-/* -------------------------------- Settings -------------------------------- */
-
-export const settingsService = {
-  async get(): Promise<Settings> {
-    return useSettingsStore.getState().settings;
-  },
-  async update(patch: Partial<Settings>): Promise<Settings> {
-    useSettingsStore.getState().save(patch);
-    return useSettingsStore.getState().settings;
+  /** Upload a profile photo; returns the new public avatar URL. */
+  async uploadAvatar(file: File): Promise<string | null> {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const res = await request<{ avatar_url: string | null }>("/profile/avatar", {
+      method: "POST",
+      body: form,
+    });
+    await this.get(); // refresh the user store with the new avatar_url
+    return res.avatar_url;
   },
 };
 
@@ -764,7 +831,7 @@ export const api = {
   authService,
   resumeService,
   profileService,
-  settingsService,
+  avatarSrc,
   notificationService,
   dashboardService,
   jobMatchService,

@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.resume import Resume
-from app.models.user import User
+from app.models.user import ROLE_RECRUITER, User
 from app.schemas.portfolio import (
     PortfolioAtsPoint,
     PortfolioRole,
@@ -112,8 +112,69 @@ def _maybe_roles(value) -> list[PortfolioRole]:
     return out
 
 
+def _profile_row(db: Session, user: User):
+    """The user's 1:1 profile row (None when never saved — fields default empty)."""
+    from app.models.profile import Profile
+
+    return db.get(Profile, user.id)
+
+
+def _clean(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return value.strip() or None
+
+
 def build_public_portfolio(db: Session, user: User) -> PublicPortfolioResponse:
-    """Assemble the public page from stored resume data. Never calls the LLM."""
+    """Assemble the public page. Never calls the LLM.
+
+    Job seekers get the resume-derived page (skills, ATS history) with their
+    editable profile identity layered on top. Recruiters get a page built
+    entirely from their profile row — company / role / location / bio / contact
+    — since they have no resumes.
+    """
+    profile = _profile_row(db, user)
+    avatar_url = None
+    if profile and profile.avatar_path:
+        avatar_url = f"/api/public/avatar/{user.id}"
+    linkedin = _clean(profile.linkedin_url) if profile else None
+    github = _clean(profile.github_url) if profile else None
+    portfolio_url = _clean(profile.portfolio_url) if profile else None
+    company = _clean(profile.company) if profile else None
+    company_role = _clean(profile.company_role) if profile else None
+    prof_location = _clean(profile.location) if profile else None
+    prof_bio = _clean(profile.bio) if profile else None
+    prof_headline = _clean(profile.headline) if profile else None
+
+    if user.role == ROLE_RECRUITER:
+        # Recruiters have no resume data — the profile IS the portfolio.
+        headline = prof_headline or (
+            f"{company_role} at {company}" if company_role and company else (company_role or company or "")
+        )
+        return PublicPortfolioResponse(
+            slug=derive_slug(db, user),
+            name=user.name,
+            email=user.email,
+            headline=headline,
+            location=prof_location or "",
+            years_experience=(profile.years_experience or 0) if profile else 0,
+            ats_score=None,
+            summary=prof_bio or "",
+            skills=[],
+            ats_history=[],
+            score_breakdown=[],
+            recommended_roles=[],
+            resume_file_name="",
+            updated_at=(profile.updated_at.isoformat() if profile else user.created_at.isoformat()),
+            is_recruiter=True,
+            company=company,
+            company_role=company_role,
+            avatar_url=avatar_url,
+            linkedin_url=linkedin,
+            github_url=github,
+            portfolio_url=portfolio_url,
+        )
+
     resumes = resume_service.list_owned(db, user.id)
     resume = _primary_resume(resumes)
     cv = resume.current_version if resume else None
@@ -144,20 +205,34 @@ def build_public_portfolio(db: Session, user: User) -> PublicPortfolioResponse:
     if resume:
         analyzed = [v.analyzed_at for v in resume.versions if v.analyzed_at]
         updated = max(analyzed) if analyzed else resume.created_at
+    if profile and (updated is None or profile.updated_at > updated):
+        updated = profile.updated_at
 
     return PublicPortfolioResponse(
         slug=derive_slug(db, user),
         name=user.name,
         email=user.email,
-        headline=str(candidate.get("title") or "") if isinstance(candidate, dict) else "",
-        location=str(candidate.get("location") or "") if isinstance(candidate, dict) else "",
-        years_experience=int(candidate.get("years_experience") or 0) if isinstance(candidate, dict) else 0,
+        # Profile identity wins; resume analysis fills the gaps.
+        headline=prof_headline
+        or (str(candidate.get("title") or "") if isinstance(candidate, dict) else ""),
+        location=prof_location
+        or (str(candidate.get("location") or "") if isinstance(candidate, dict) else ""),
+        years_experience=(profile.years_experience or 0)
+        if profile
+        else (int(candidate.get("years_experience") or 0) if isinstance(candidate, dict) else 0),
         ats_score=cv.ats_score if cv else None,
-        summary=str(analysis.get("summary") or "") if isinstance(analysis, dict) else "",
+        summary=prof_bio or (str(analysis.get("summary") or "") if isinstance(analysis, dict) else ""),
         skills=skills,
         ats_history=ats_history,
         score_breakdown=_maybe_score_breakdown(analysis.get("score_breakdown")) if isinstance(analysis, dict) else [],
         recommended_roles=_maybe_roles(analysis.get("recommended_roles")) if isinstance(analysis, dict) else [],
         resume_file_name=cv.file_name if cv else "",
         updated_at=updated.isoformat() if updated else user.created_at.isoformat(),
+        is_recruiter=False,
+        company=company,
+        company_role=company_role,
+        avatar_url=avatar_url,
+        linkedin_url=linkedin,
+        github_url=github,
+        portfolio_url=portfolio_url,
     )

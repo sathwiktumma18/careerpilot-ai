@@ -44,6 +44,14 @@ class PublicPortfolioResponse(BaseModel):
     recommended_roles: list[PortfolioRole]
     resume_file_name: str
     updated_at: str
+    # Phase F — identity from the profile row (both roles).
+    is_recruiter: bool = False
+    company: str | None = None
+    company_role: str | None = None
+    avatar_url: str | None = None
+    linkedin_url: str | None = None
+    github_url: str | None = None
+    portfolio_url: str | None = None
 
 
 class MyPortfolioResponse(BaseModel):

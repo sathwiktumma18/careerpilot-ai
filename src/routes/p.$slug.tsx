@@ -19,9 +19,12 @@ import {
 import {
   ArrowUpRight,
   Briefcase,
+  Building2,
   Calendar,
   CheckCircle2,
+  Github,
   Link as LinkIcon,
+  Linkedin,
   Loader2,
   Mail,
   MapPin,
@@ -117,6 +120,11 @@ function PortfolioBody({ p }: { p: PortfolioProfile }) {
     name: `v${pt.versionNo}`,
     score: pt.atsScore ?? 0,
   }));
+  const socials = [
+    p.linkedinUrl ? { label: "LinkedIn", href: p.linkedinUrl, icon: Linkedin } : null,
+    p.githubUrl ? { label: "GitHub", href: p.githubUrl, icon: Github } : null,
+    p.portfolioUrl ? { label: "Website", href: p.portfolioUrl, icon: LinkIcon } : null,
+  ].filter((s): s is { label: string; href: string; icon: typeof Linkedin } => Boolean(s));
 
   return (
     <>
@@ -129,7 +137,8 @@ function PortfolioBody({ p }: { p: PortfolioProfile }) {
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-medium text-primary"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Public portfolio
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            {p.isRecruiter ? "Recruiter portfolio" : "Public portfolio"}
           </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 18 }}
@@ -155,6 +164,12 @@ function PortfolioBody({ p }: { p: PortfolioProfile }) {
             transition={{ duration: 0.6, delay: 0.24, ease: "easeOut" }}
             className="mt-5 flex flex-wrap gap-2"
           >
+            {p.isRecruiter && p.company && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+                <Building2 className="h-3.5 w-3.5" /> {p.company}
+                {p.companyRole ? ` · ${p.companyRole}` : ""}
+              </span>
+            )}
             {p.location && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs text-muted-foreground">
                 <MapPin className="h-3.5 w-3.5" /> {p.location}
@@ -165,7 +180,7 @@ function PortfolioBody({ p }: { p: PortfolioProfile }) {
                 <Briefcase className="h-3.5 w-3.5" /> {p.yearsExperience} yrs experience
               </span>
             )}
-            {p.resumeFileName && (
+            {!p.isRecruiter && p.resumeFileName && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs text-muted-foreground">
                 <CheckCircle2 className="h-3.5 w-3.5 text-[color:var(--success)]" />{" "}
                 {p.resumeFileName}
@@ -189,11 +204,24 @@ function PortfolioBody({ p }: { p: PortfolioProfile }) {
             className="mt-8 flex flex-wrap items-center gap-3"
           >
             <a
-              href={`mailto:${p.email}?subject=Let's talk — I saw your portfolio`}
+              href={`mailto:${p.email}?subject=${
+                p.isRecruiter ? "About your open role" : "Let's talk — I saw your portfolio"
+              }`}
               className="inline-flex items-center gap-2 rounded-xl bg-[image:var(--gradient-primary)] px-5 py-2.5 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:-translate-y-0.5 hover:opacity-90"
             >
-              <Mail className="h-4 w-4" /> Hire me
+              <Mail className="h-4 w-4" /> {p.isRecruiter ? "Contact" : "Hire me"}
             </a>
+            {socials.map((s) => (
+              <a
+                key={s.label}
+                href={s.href}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card/50 px-4 py-2.5 text-sm font-medium transition hover:-translate-y-0.5 hover:border-primary/40 hover:text-primary"
+              >
+                <s.icon className="h-4 w-4" /> {s.label}
+              </a>
+            ))}
             <Link
               to="/"
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-card/50 px-5 py-2.5 text-sm font-medium transition hover:-translate-y-0.5 hover:border-primary/40 hover:text-primary"
@@ -207,24 +235,43 @@ function PortfolioBody({ p }: { p: PortfolioProfile }) {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
-          className="glass relative flex flex-col items-center justify-center rounded-3xl p-8"
+          className="glass relative flex w-64 flex-col items-center justify-center rounded-3xl p-8"
         >
           <div className="pointer-events-none absolute inset-0 rounded-3xl bg-[image:var(--gradient-glow)]" />
-          <div className="relative">
-            <Gauge score={p.atsScore ?? 0} size={160} sublabel="ATS fit" />
-          </div>
-          <div className="relative mt-4 text-center">
-            <div className="text-xs font-medium text-muted-foreground">Profile strength</div>
-            <div className="mt-0.5 text-sm font-semibold">
-              {p.atsScore == null
-                ? "No analysis yet"
-                : p.atsScore >= 75
-                  ? "Strong — hiring ready"
-                  : p.atsScore >= 55
-                    ? "Good — improving fast"
-                    : "Needs work"}
+          {p.isRecruiter ? (
+            <div className="relative w-full text-center">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Building2 className="h-9 w-9" />
+              </div>
+              <div className="mt-4 text-base font-semibold">{p.company || "Recruiter"}</div>
+              <div className="mt-0.5 text-sm text-muted-foreground">
+                {p.companyRole || "Hiring"}
+              </div>
+              <div className="mt-5 w-full rounded-xl border border-border bg-card/40 px-3 py-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <Briefcase className="h-3.5 w-3.5 text-primary" /> Actively hiring on CareerPilot
+                </span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="relative">
+                <Gauge score={p.atsScore ?? 0} size={160} sublabel="ATS fit" />
+              </div>
+              <div className="relative mt-4 text-center">
+                <div className="text-xs font-medium text-muted-foreground">Profile strength</div>
+                <div className="mt-0.5 text-sm font-semibold">
+                  {p.atsScore == null
+                    ? "No analysis yet"
+                    : p.atsScore >= 75
+                      ? "Strong — hiring ready"
+                      : p.atsScore >= 55
+                        ? "Good — improving fast"
+                        : "Needs work"}
+                </div>
+              </div>
+            </>
+          )}
         </motion.div>
       </section>
 

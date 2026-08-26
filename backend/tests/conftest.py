@@ -44,7 +44,9 @@ def _no_live_llm(monkeypatch):
 @pytest.fixture(autouse=True)
 def _temp_uploads(tmp_path, monkeypatch):
     monkeypatch.setattr(ai_provider.settings, "upload_dir", str(tmp_path / "uploads"))
+    monkeypatch.setattr(ai_provider.settings, "avatar_dir", str(tmp_path / "avatars"))
     ensure_dir(Path(ai_provider.settings.upload_dir))
+    ensure_dir(Path(ai_provider.settings.avatar_dir))
     yield
 
 

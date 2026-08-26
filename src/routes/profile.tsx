@@ -1,163 +1,165 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { forwardRef } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { toast } from "sonner";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import {
+  Briefcase,
+  ExternalLink,
+  Github,
+  Linkedin,
+  Loader2,
+  Mail,
+  MapPin,
+  Settings,
+} from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { FadeIn } from "@/components/common/Motion";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/lib/store";
-import { profileService } from "@/services/api";
+import { avatarSrc, portfolioService } from "@/services/api";
+import type { PortfolioProfile } from "@/lib/portfolio";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [{ title: "Profile — CareerPilot" }] }),
   component: ProfilePage,
 });
 
-const schema = z.object({
-  name: z.string().trim().min(2, "Name is required").max(80),
-  email: z.string().trim().email("Enter a valid email"),
-  title: z.string().trim().min(2, "Title is required").max(80),
-  location: z.string().trim().max(80),
-  bio: z.string().trim().max(400),
-  yearsExperience: z.coerce.number().int().min(0).max(60),
-});
-
-type FormValues = z.infer<typeof schema>;
-
 function ProfilePage() {
   const user = useAuthStore((s) => s.user);
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isDirty, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: user
-      ? {
-          name: user.name,
-          email: user.email,
-          title: user.title,
-          location: user.location,
-          bio: user.bio,
-          yearsExperience: user.yearsExperience,
-        }
-      : undefined,
-  });
+  const isRecruiter = user?.role === "recruiter";
+  const [profile, setProfile] = useState<PortfolioProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  async function onSubmit(values: FormValues) {
-    try {
-      await profileService.update(values);
-      reset(values);
-      toast.success("Profile updated");
-    } catch {
-      toast.error("Could not update profile");
-    }
-  }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await portfolioService.getMe();
+        const p = await portfolioService.getPublic(me.slug);
+        if (!cancelled) setProfile(p);
+      } catch {
+        // No portfolio yet — the page still shows the account shell.
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!user) return null;
+
+  const avatar = avatarSrc(profile?.avatarUrl);
+  const headline = profile?.headline || (isRecruiter ? "Recruiter" : "");
+  const socials = [
+    profile?.linkedinUrl ? { label: "LinkedIn", href: profile.linkedinUrl, icon: Linkedin } : null,
+    profile?.githubUrl ? { label: "GitHub", href: profile.githubUrl, icon: Github } : null,
+    profile?.portfolioUrl
+      ? { label: "Website", href: profile.portfolioUrl, icon: ExternalLink }
+      : null,
+  ].filter((s): s is { label: string; href: string; icon: typeof Linkedin } => Boolean(s));
 
   return (
     <AppShell>
       <PageHeader
         eyebrow="Account"
-        title="Profile"
-        description="Your public CareerPilot identity."
+        title="Your public profile"
+        description={
+          isRecruiter
+            ? "How candidates see you on your recruiter portfolio."
+            : "How recruiters see you on your portfolio and in the directory."
+        }
+        actions={
+          <Link
+            to="/settings"
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/50 px-4 py-2 text-sm font-medium transition hover:bg-card"
+          >
+            <Settings className="h-4 w-4" /> Edit in settings
+          </Link>
+        }
       />
 
       <FadeIn>
-        <form onSubmit={handleSubmit(onSubmit)} className="grid gap-6 lg:grid-cols-3">
-          <div className="glass rounded-2xl p-6 text-center">
-            <Avatar className="mx-auto h-24 w-24">
-              <AvatarFallback className="bg-[image:var(--gradient-primary)] text-2xl text-white">
-                {user.avatarInitials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="mt-4 text-lg font-semibold">{user.name}</div>
-            <div className="text-sm text-muted-foreground">{user.title}</div>
-            <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs">
-              {user.location && (
-                <span className="rounded-full border border-border px-2 py-1">{user.location}</span>
-              )}
-              <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-primary">
-                {user.plan} plan
-              </span>
+        {loading ? (
+          <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 text-muted-foreground">
+            <Loader2 className="h-7 w-7 animate-spin text-primary" />
+            <p className="text-sm">Loading your public profile…</p>
+          </div>
+        ) : (
+          <div className="mx-auto max-w-2xl">
+            <div className="gradient-border relative overflow-hidden rounded-3xl p-8">
+              <div className="pointer-events-none absolute inset-0 bg-[image:var(--gradient-glow)]" />
+              <div className="relative flex flex-col items-center text-center">
+                <Avatar className="h-24 w-24 border-4 border-background/60">
+                  {avatar && <AvatarImage src={avatar} alt={user.name} />}
+                  <AvatarFallback className="bg-[image:var(--gradient-primary)] text-3xl text-white">
+                    {user.avatarInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <h2 className="mt-4 text-2xl font-bold tracking-tight">{user.name}</h2>
+                {headline && <p className="mt-1 text-sm text-muted-foreground">{headline}</p>}
+
+                {(profile?.location || isRecruiter) && (
+                  <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
+                    {profile?.location && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-2.5 py-1">
+                        <MapPin className="h-3 w-3" /> {profile.location}
+                      </span>
+                    )}
+                    {profile && (profile.yearsExperience ?? 0) > 0 && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-2.5 py-1">
+                        <Briefcase className="h-3 w-3" /> {profile.yearsExperience} yrs
+                      </span>
+                    )}
+                    {isRecruiter && profile?.company && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-primary">
+                        <Briefcase className="h-3 w-3" /> {profile.company}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {profile?.summary && (
+                  <p className="mt-5 max-w-lg text-sm leading-relaxed text-foreground/85">
+                    {profile.summary}
+                  </p>
+                )}
+
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-muted-foreground">
+                    <Mail className="h-3.5 w-3.5" /> {user.email}
+                  </span>
+                  {socials.map((s) => (
+                    <a
+                      key={s.label}
+                      href={s.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs transition hover:border-primary/40 hover:text-primary"
+                    >
+                      <s.icon className="h-3.5 w-3.5" /> {s.label}
+                    </a>
+                  ))}
+                </div>
+
+                {profile && (
+                  <div className="mt-6 flex items-center justify-center gap-2 text-xs">
+                    <span className="text-muted-foreground">Public page:</span>
+                    <a
+                      href={`/p/${profile.slug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                    >
+                      /p/{profile.slug} <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-
-          <div className="glass rounded-2xl p-6 lg:col-span-2">
-            <h3 className="text-sm font-semibold">Personal information</h3>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Full name" error={errors.name?.message} {...register("name")} />
-              <Field
-                label="Email"
-                type="email"
-                error={errors.email?.message}
-                {...register("email")}
-              />
-              <Field label="Job title" error={errors.title?.message} {...register("title")} />
-              <Field label="Location" error={errors.location?.message} {...register("location")} />
-              <Field
-                label="Years of experience"
-                type="number"
-                min={0}
-                max={60}
-                error={errors.yearsExperience?.message}
-                {...register("yearsExperience")}
-              />
-            </div>
-
-            <div className="mt-4">
-              <div className="mb-1.5 text-xs font-medium text-muted-foreground">About</div>
-              <textarea
-                rows={4}
-                {...register("bio")}
-                className="w-full rounded-lg border border-input bg-card/50 p-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-              {errors.bio && <p className="mt-1 text-xs text-destructive">{errors.bio.message}</p>}
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-6">
-              <button
-                type="button"
-                onClick={() => reset()}
-                disabled={!isDirty || isSubmitting}
-                className="rounded-lg border border-border bg-card/50 px-4 py-2 text-sm transition hover:bg-card disabled:opacity-40"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!isDirty || isSubmitting}
-                className="rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90 disabled:opacity-40"
-              >
-                {isSubmitting ? "Saving…" : "Save profile"}
-              </button>
-            </div>
-          </div>
-        </form>
+        )}
       </FadeIn>
     </AppShell>
   );
 }
-
-const Field = forwardRef<
-  HTMLInputElement,
-  React.InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }
->(function Field({ label, error, type = "text", ...rest }, ref) {
-  return (
-    <label className="block">
-      <div className="mb-1.5 text-xs font-medium text-muted-foreground">{label}</div>
-      <input
-        ref={ref}
-        type={type}
-        {...rest}
-        className="h-10 w-full rounded-lg border border-input bg-card/50 px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-      />
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
-    </label>
-  );
-});

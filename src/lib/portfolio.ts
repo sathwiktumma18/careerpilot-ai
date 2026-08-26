@@ -34,4 +34,12 @@ export type PortfolioProfile = {
   recommendedRoles: PortfolioRole[];
   resumeFileName: string;
   updatedAt: string;
+  /** Phase F — editable profile identity (both roles). */
+  isRecruiter?: boolean;
+  company?: string | null;
+  companyRole?: string | null;
+  avatarUrl?: string | null;
+  linkedinUrl?: string | null;
+  githubUrl?: string | null;
+  portfolioUrl?: string | null;
 };
