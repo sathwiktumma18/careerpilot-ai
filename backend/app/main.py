@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config.settings import settings
 from app.database.migrate import run_migrations
+from app.services.seed_service import seed_recruiters
 from app.routes import (
     auth,
     dashboard,
@@ -24,6 +25,9 @@ from app.routes import (
 async def lifespan(_app: FastAPI):
     # Schema is owned by Alembic migrations; upgrade is idempotent.
     run_migrations()
+    # Seed demo recruiters so the recruiter half of the product is testable
+    # out of the box (no-op when recruiters already exist).
+    seed_recruiters()
     yield
 
 
@@ -37,7 +41,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

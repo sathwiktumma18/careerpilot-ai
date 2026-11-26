@@ -19,6 +19,8 @@ export type JobMatchResult = {
   bonusSkills: string[];
   summary: string;
   source: "corpus" | "paste";
+  applyLink: string | null;
+  postedAt: string | null;
 };
 
 export type JobMatchResponse = {

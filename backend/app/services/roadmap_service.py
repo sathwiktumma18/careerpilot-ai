@@ -59,18 +59,20 @@ def _detect_category(role: str) -> str | None:
 # Canonical role phrases per track. The fuzzy matcher maps input close to one
 # of these onto that track, so "frntend engineer" still plans as Frontend.
 _ROLE_PHRASES: dict[str, tuple[str, ...]] = {
-    "frontend": ("Frontend Engineer", "Frontend Developer", "UI Developer", "React Developer", "Web Developer"),
-    "full stack": ("Full Stack Engineer", "Full Stack Developer", "MERN Stack Developer", "MEAN Stack Developer"),
-    "backend": ("Backend Engineer", "Backend Developer", "Java Developer", "Python Developer", "Node.js Developer", "API Engineer", "Server Engineer"),
-    "devops": ("DevOps Engineer", "Site Reliability Engineer", "Cloud Engineer", "Platform Engineer", "SRE", "Infrastructure Engineer"),
-    "data": ("Data Engineer", "Data Analyst", "Analytics Engineer", "Data Scientist", "Database Engineer"),
-    "ml": ("Machine Learning Engineer", "ML Engineer", "AI Engineer", "Deep Learning Engineer", "LLM Engineer"),
-    "product": ("Product Manager", "Technical Product Manager", "Product Owner", "Program Manager"),
-    "design": ("Product Designer", "UX Designer", "UI Designer", "UX/UI Designer", "Design Engineer"),
+    "frontend": ("Frontend Engineer", "Frontend Developer", "UI Developer", "React Developer", "Web Developer", "Front End Engineer", "FE Engineer"),
+    "full stack": ("Full Stack Engineer", "Full Stack Developer", "MERN Stack Developer", "MEAN Stack Developer", "Fullstack Engineer", "Fullstack Developer"),
+    "backend": ("Backend Engineer", "Backend Developer", "Java Developer", "Python Developer", "Node.js Developer", "API Engineer", "Server Engineer", "BE Engineer", "Back End Engineer"),
+    "devops": ("DevOps Engineer", "Site Reliability Engineer", "Cloud Engineer", "Platform Engineer", "SRE", "Infrastructure Engineer", "Dev Ops Engineer"),
+    "data": ("Data Engineer", "Data Analyst", "Analytics Engineer", "Data Scientist", "Database Engineer", "Data Warehousing"),
+    "ml": ("Machine Learning Engineer", "ML Engineer", "AI Engineer", "Deep Learning Engineer", "LLM Engineer", "GenAI Engineer", "ML Engineer"),
+    "product": ("Product Manager", "Technical Product Manager", "Product Owner", "Program Manager", "Product Strategy", "TPM"),
+    "design": ("Product Designer", "UX Designer", "UI Designer", "UX/UI Designer", "Design Engineer", "Visual Designer", "Interaction Designer"),
+    "qa": ("QA Engineer", "Quality Assurance", "Test Automation Engineer", "SDET"),
+    "android": ("Android Developer", "Mobile Engineer", "iOS Developer"),
 }
 
 # Minimum confidence before a typo is treated as resolved.
-_ROLE_MATCH_THRESHOLD = 0.6
+_ROLE_MATCH_THRESHOLD = 0.5
 
 
 def _normalize_role_text(role: str) -> str:

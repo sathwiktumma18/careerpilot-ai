@@ -18,6 +18,8 @@ export interface ApiJobMatchResult {
   bonus_skills: string[];
   summary: string;
   source: "corpus" | "paste";
+  apply_link: string | null;
+  posted_at: string | null;
 }
 
 export interface ApiJobMatchResponse {

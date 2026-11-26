@@ -45,25 +45,25 @@ backend/
 
 ## Endpoints
 
-| Method | Path                    | Purpose                                       |
-|--------|-------------------------|-----------------------------------------------|
-| POST   | /api/auth/register      | Create an account (returns a JWT)             |
-| POST   | /api/auth/login         | Sign in (returns a JWT)                       |
+| Method | Path                      | Purpose                                     |
+| ------ | ------------------------- | ------------------------------------------- |
+| POST   | /api/auth/register        | Create an account (returns a JWT)           |
+| POST   | /api/auth/login           | Sign in (returns a JWT)                     |
 | POST   | /api/auth/forgot-password | Issue a one-time reset token (always 200)   |
-| POST   | /api/auth/reset-password | Set a new password with the token            |
-| GET    | /api/auth/me            | Current user                                 |
-| POST   | /api/resumes            | Upload a resume (PDF)                        |
-| GET    | /api/resumes            | List the current user's resumes              |
+| POST   | /api/auth/reset-password  | Set a new password with the token           |
+| GET    | /api/auth/me              | Current user                                |
+| POST   | /api/resumes              | Upload a resume (PDF)                       |
+| GET    | /api/resumes              | List the current user's resumes             |
 | POST   | /api/resumes/{id}/analyze | Analyze a resume with Gemini                |
-| GET    | /api/resumes/{id}       | Resume detail + analysis                     |
-| DELETE | /api/resumes/{id}       | Delete a resume (ownership-scoped)           |
-| POST   | /api/match              | Rank jobs against a resume                   |
-| GET    | /api/jobs               | Candidate roles                              |
-| POST   | /api/interview/sessions | Start an interview session                   |
-| POST   | /api/interview/feedback | AI feedback on a single answer               |
-| POST   | /api/roadmap            | Generate a career roadmap                    |
-| GET    | /api/profile            | Current user profile                         |
-| GET    | /api/dashboard          | Aggregated dashboard stats                   |
-| GET    | /health                 | Liveness probe (used by Docker healthcheck)  |
+| GET    | /api/resumes/{id}         | Resume detail + analysis                    |
+| DELETE | /api/resumes/{id}         | Delete a resume (ownership-scoped)          |
+| POST   | /api/match                | Rank jobs against a resume                  |
+| GET    | /api/jobs                 | Candidate roles                             |
+| POST   | /api/interview/sessions   | Start an interview session                  |
+| POST   | /api/interview/feedback   | AI feedback on a single answer              |
+| POST   | /api/roadmap              | Generate a career roadmap                   |
+| GET    | /api/profile              | Current user profile                        |
+| GET    | /api/dashboard            | Aggregated dashboard stats                  |
+| GET    | /health                   | Liveness probe (used by Docker healthcheck) |
 
 AI providers live in `services/` (Gemini → Ollama → deterministic fallback).

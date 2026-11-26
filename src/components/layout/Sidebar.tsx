@@ -77,8 +77,8 @@ export function Sidebar() {
   return (
     <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/80 backdrop-blur-xl">
       <div className="flex items-center gap-2 px-6 h-16 border-b border-sidebar-border">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[image:var(--gradient-primary)] shadow-[var(--shadow-glow)]">
-          <Sparkles className="h-4 w-4 text-white" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[image:var(--gradient-primary)] shadow-[var(--shadow-glow)]">
+          <Sparkles className="h-5 w-5 text-white" />
         </div>
         <div className="flex flex-col leading-tight">
           <span className="text-sm font-semibold">CareerPilot</span>

@@ -41,6 +41,9 @@ function UploadPage() {
   const [mode, setMode] = useState<"general" | "jd">("general");
   const [targetRole, setTargetRole] = useState("");
   const [jobDescription, setJobDescription] = useState("");
+  // "No JD Analyze" — pick a target role to benchmark against senior roles
+  // without pasting a posting. Defaults to the resume's own headline when set.
+  const [generalRole, setGeneralRole] = useState("");
 
   const onDrop = useCallback((files: File[]) => {
     setError(null);
@@ -89,14 +92,18 @@ function UploadPage() {
               targetRole: targetRole.trim() || undefined,
               jobDescription: jobDescription.trim() || undefined,
             }
-          : {}),
+          : generalRole.trim()
+            ? { targetRole: generalRole.trim() }
+            : {}),
       });
       toast.success(
         isVersion
           ? "New version analyzed"
           : jdActive
             ? "Score against the job posting complete"
-            : "Analysis complete",
+            : generalRole.trim()
+              ? "Benchmarked against your target role"
+              : "Analysis complete",
       );
       navigate({ to: "/resume/analysis/$id", params: { id } });
     } catch (e) {
@@ -270,6 +277,35 @@ function UploadPage() {
                         placeholder="Paste the job description here — skills, requirements, responsibilities. We'll score your resume's fit for this exact posting."
                         className="w-full resize-y rounded-xl border border-input bg-card/60 px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
                       />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {!jdActive && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="glass mt-4 space-y-3 rounded-2xl p-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                        Target role for benchmarking (optional)
+                      </label>
+                      <input
+                        value={generalRole}
+                        onChange={(e) => setGeneralRole(e.target.value)}
+                        placeholder="e.g. Senior Backend Engineer — leave blank for a general benchmark"
+                        className="h-10 w-full rounded-xl border border-input bg-card/60 px-3 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      />
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        No JD needed — we benchmark against senior roles in this title and surface
+                        the gaps.
+                      </p>
                     </div>
                   </div>
                 </motion.div>

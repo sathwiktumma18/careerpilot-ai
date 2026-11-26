@@ -347,6 +347,11 @@ function JobMatchPage() {
                                 {formatSalary(job.salaryMin)}–{formatSalary(job.salaryMax)}
                               </span>
                             )}
+                            {job.postedAt && (
+                              <span className="inline-flex items-center gap-1 text-muted-foreground">
+                                <Clock className="h-3 w-3" /> {formatPosted(job.postedAt)}
+                              </span>
+                            )}
                           </div>
 
                           <p className="mt-2 text-sm text-muted-foreground">{job.summary}</p>
@@ -362,6 +367,19 @@ function JobMatchPage() {
                               <SkillChip key={s} name={s} tone="missing" />
                             ))}
                           </div>
+
+                          {job.applyLink && job.source !== "paste" && (
+                            <div className="mt-3">
+                              <a
+                                href={job.applyLink}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-1.5 text-xs font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90"
+                              >
+                                Apply <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>

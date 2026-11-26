@@ -27,6 +27,8 @@ class JobMatchResult(BaseModel):
     bonus_skills: list[str]
     summary: str
     source: Literal["corpus", "paste"]
+    apply_link: str | None = None
+    posted_at: str | None = None
 
 
 class JobMatchResponse(BaseModel):

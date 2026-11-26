@@ -17,6 +17,8 @@ import json
 import logging
 import math
 import re
+from datetime import datetime, timedelta, timezone
+
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -203,6 +205,10 @@ def _build_result(
     score, matched, missing, bonus = _score_job(job, resume_skills, semantic_sim)
     # A salary of 0 means "not advertised" (e.g. pasted JD) → surface as None.
     has_salary = job.salary_min > 0 or job.salary_max > 0
+    posted = (
+        datetime.now(timezone.utc)
+        - timedelta(days=getattr(job, "posted_days_ago", 0) or 0)
+    ).isoformat()
     return {
         "job_id": job.job_id,
         "title": job.title,
@@ -217,6 +223,8 @@ def _build_result(
         "bonus_skills": bonus,
         "summary": _job_summary(job, matched, missing),
         "source": source,
+        "apply_link": getattr(job, "apply_link", "") or None,
+        "posted_at": posted,
     }
 
 
@@ -304,6 +312,7 @@ async def match_resume(
 
 
 def list_jobs() -> list[dict]:
+    now = datetime.now(timezone.utc)
     return [
         {
             "job_id": j.job_id,
@@ -316,6 +325,8 @@ def list_jobs() -> list[dict]:
             "category": j.category,
             "skills_count": len(j.required_skills),
             "description": j.description,
+            "apply_link": getattr(j, "apply_link", "") or None,
+            "posted_at": (now - timedelta(days=getattr(j, "posted_days_ago", 0) or 0)).isoformat(),
         }
         for j in JOBS
     ]

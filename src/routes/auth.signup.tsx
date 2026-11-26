@@ -127,29 +127,19 @@ function SignupPage() {
         <div className="mt-6 grid grid-cols-2 gap-2">
           <button
             type="button"
-            disabled={oauthBusy !== null}
-            onClick={() => startOAuth("github")}
-            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card disabled:opacity-50"
+            disabled
+            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm text-muted-foreground transition hover:bg-card disabled:opacity-50"
           >
-            {oauthBusy === "github" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Github className="h-4 w-4" />
-            )}{" "}
-            GitHub
+            <Github className="h-4 w-4" />
+            GitHub (Coming soon)
           </button>
           <button
             type="button"
-            disabled={oauthBusy !== null}
-            onClick={() => startOAuth("google")}
-            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm transition hover:bg-card disabled:opacity-50"
+            disabled
+            className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2 text-sm text-muted-foreground transition hover:bg-card disabled:opacity-50"
           >
-            {oauthBusy === "google" ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Mail className="h-4 w-4" />
-            )}{" "}
-            Google
+            <Mail className="h-4 w-4" />
+            Google (Coming soon)
           </button>
         </div>
 

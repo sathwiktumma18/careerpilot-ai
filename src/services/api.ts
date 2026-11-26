@@ -43,7 +43,7 @@ import {
 } from "@/lib/portfolio-mapper";
 import type { PortfolioProfile } from "@/lib/portfolio";
 
-export const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
+export const BASE_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api";
 
 /** The backend's auth payload — the subset of the user we keep client-side. */
 interface ApiUser {
@@ -85,13 +85,20 @@ function mapUserFromApi(apiUser: ApiUser): User {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = useAuthStore.getState().token;
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      ...(init?.headers ?? {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        ...(init?.headers ?? {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  } catch {
+    throw new Error(
+      "Unable to connect to the backend server. Please make sure the backend is running at http://127.0.0.1:8000.",
+    );
+  }
   // A 401 on an authenticated call means the stored session is dead — drop it
   // so RequireAuth sends the user back to /auth/login. A login attempt carries
   // no token, so a bad-password 401 just surfaces as an error below.

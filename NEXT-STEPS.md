@@ -24,6 +24,7 @@ each phase in the browser before moving on.
   seekers), `GET /api/recruiters` directory. E2E verified via TestClient.
 
 ### How to run (local dev, SQLite — no Docker needed)
+
 - Backend: `cd backend; .\venv\Scripts\python.exe -m uvicorn app.main:app --port 8000 --reload` → http://127.0.0.1:8000
 - Frontend: `npm run dev` → http://127.0.0.1:5173
 - Migrations auto-run at startup (idempotent).
@@ -33,9 +34,11 @@ each phase in the browser before moving on.
 ## TODO for tomorrow — in this order
 
 ### 🔵 Phase A4 — Messaging backend (NOT started)
+
 Conversation + Message models/migration; endpoints: start a thread
 (seeker→recruiter or recruiter→seeker), list my conversations, get/send messages,
 unread flags, participant-only ownership. Wire into `/api/messages`.
+
 - Add `Conversation` (id, seeker_id, recruiter_id, created_at, updated_at,
   last_message_at) + `Message` (id, conversation_id, sender_id, body, created_at,
   read_at). Migration. Register in `models/__init__.py`.
@@ -45,6 +48,7 @@ unread flags, participant-only ownership. Wire into `/api/messages`.
   the conversation/messages with that recruiter (join existing thread or null).
 
 ### 🔵 Phase A5 — Messaging + Recruiters UI + real recruiter dashboard
+
 - New seeker page **Recruiters** (`/recruiters`): list from `GET /api/recruiters`,
   each card has "Message" → opens/creates thread.
 - New **Inbox** page (`/messages` + `/messages/$id`) for both roles.
@@ -62,13 +66,15 @@ unread flags, participant-only ownership. Wire into `/api/messages`.
   page — company / role / location / bio / contact, built from their profile.
 
 ### 🟢 Phase B — Resume analysis with optional JD
+
 - Backend `/api/resumes/{id}/analyze` accepts optional `job_description` +
   `target_role`; provider prompt + fallback handle both modes.
 - Upload page: "Analyze without JD" (current behavior) vs "Paste a JD + choose a
   target role" — score the resume against that specific JD/role and show an ATS
   score for THAT posting. Keep an explicit **"No JD Analyze"** option available.
 
-### 🟢 Phase C — Real jobs (JSearch / RapidAPI)  ← needs a key from the user
+### 🟢 Phase C — Real jobs (JSearch / RapidAPI) ← needs a key from the user
+
 - User registers JSearch on RapidAPI (free tier ≈100 req/mo) and gives the key.
 - Store key in `backend/.env` as `JSEARCH_API_KEY` (git-ignored). Adapter in
   `backend/app/services/jobs_api.py`; query live postings by title/location,
@@ -81,17 +87,20 @@ unread flags, participant-only ownership. Wire into `/api/messages`.
   (Naukri / Indeed / Unstop / Google listings) — **prioritize Indian jobs**.
 
 ### 🟢 Phase D — Interview speech input/output
+
 - Browser Web Speech API (free, Chrome): SpeechRecognition for answers (STT),
   speechSynthesis for the AI reading questions aloud (TTS) with a voice picker
   and on/off toggle. Use a **natural human-sounding voice** for TTS (not the
   robotic default) and realistic STT. No backend changes needed.
 
 ### 🟢 Phase E — Roadmap typo tolerance
+
 - Normalize/fuzzy-match the user's typed target role against known roles
   (reuse `skill_catalog.normalize_name` style) so misspellings still produce a
   correct roadmap.
 
 ### 🟢 Phase F — Settings rebuild
+
 - Replace the workspace/General/AI/Billing/Team/API Keys tabs with **real Account
   settings ONLY** — those tabs were dummy (did nothing when clicked, pre-filled
   "Alex"/alex@gmail.com); remove them entirely, no separate Workspace page.
@@ -101,12 +110,14 @@ unread flags, participant-only ownership. Wire into `/api/messages`.
   persistence. Fields start **empty** — never pre-fill demo data.
 
 ### 🟣 Phase G — UI/UX polish
+
 - Create a `.claude/skills/` UI/UX design skill package, then apply a full
   polish pass over the app (dashboard, auth, settings, recruiter, messaging).
 
 ---
 
 ## Notes / reminders
+
 - **Never commit `backend/.env`** (holds GEMINI_API_KEY + JSEARCH_API_KEY). It is
   git-ignored — double-check before any `git add -A`.
 - Git commits end with `Co-Authored-By: Claude <noreply@anthropic.com>`.

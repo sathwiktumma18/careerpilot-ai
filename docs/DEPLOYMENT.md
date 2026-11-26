@@ -52,17 +52,17 @@ Prereqs: Docker Desktop (or a Docker daemon) and your Gemini API key.
 
 ## Environment variables
 
-| Variable | Required | Notes |
-| --- | --- | --- |
-| `GEMINI_API_KEY` | for live AI | Free key at Google AI Studio. Empty → local Ollama → deterministic fallback. |
-| `JWT_SECRET` | in production | Signs auth tokens. **Must** be a long random string outside dev. |
-| `JWT_ALGORITHM` | no | Default `HS256`. |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | no | Default `1440` (24 h). |
-| `DATABASE_URL` | no | Defaults to SQLite for local dev/tests. `docker compose` overrides it with the in-stack Postgres (`postgresql+psycopg://careerpilot:careerpilot@postgres:5432/careerpilot`). Prod: same URL form pointing at a real instance with a strong password. |
-| `CORS_ORIGINS` | no | List of allowed browser origins. The OAuth callback redirects back to `CORS_ORIGINS[0]/auth/oauth/callback`. |
-| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | for Google sign-in | See [OAuth setup](#oauth-setup). Missing → `/api/auth/oauth/google/authorize` returns 501. |
-| `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` | for GitHub sign-in | See [OAuth setup](#oauth-setup). Missing → `/api/auth/oauth/github/authorize` returns 501. |
-| `OAUTH_REDIRECT_BASE_URL` | no | Defaults to `http://localhost:8000`. Provider callback URI = `{this}/api/auth/oauth/{provider}/callback`. |
+| Variable                                                | Required           | Notes                                                                                                                                                                                                                                                |
+| ------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GEMINI_API_KEY`                                        | for live AI        | Free key at Google AI Studio. Empty → local Ollama → deterministic fallback.                                                                                                                                                                         |
+| `JWT_SECRET`                                            | in production      | Signs auth tokens. **Must** be a long random string outside dev.                                                                                                                                                                                     |
+| `JWT_ALGORITHM`                                         | no                 | Default `HS256`.                                                                                                                                                                                                                                     |
+| `ACCESS_TOKEN_EXPIRE_MINUTES`                           | no                 | Default `1440` (24 h).                                                                                                                                                                                                                               |
+| `DATABASE_URL`                                          | no                 | Defaults to SQLite for local dev/tests. `docker compose` overrides it with the in-stack Postgres (`postgresql+psycopg://careerpilot:careerpilot@postgres:5432/careerpilot`). Prod: same URL form pointing at a real instance with a strong password. |
+| `CORS_ORIGINS`                                          | no                 | List of allowed browser origins. The OAuth callback redirects back to `CORS_ORIGINS[0]/auth/oauth/callback`.                                                                                                                                         |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | for Google sign-in | See [OAuth setup](#oauth-setup). Missing → `/api/auth/oauth/google/authorize` returns 501.                                                                                                                                                           |
+| `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` | for GitHub sign-in | See [OAuth setup](#oauth-setup). Missing → `/api/auth/oauth/github/authorize` returns 501.                                                                                                                                                           |
+| `OAUTH_REDIRECT_BASE_URL`                               | no                 | Defaults to `http://localhost:8000`. Provider callback URI = `{this}/api/auth/oauth/{provider}/callback`.                                                                                                                                            |
 
 ## OAuth setup
 

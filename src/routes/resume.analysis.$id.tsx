@@ -67,6 +67,11 @@ function AnalysisPage() {
   const [jdRole, setJdRole] = useState("");
   const [jdText, setJdText] = useState("");
   const [jdScoring, setJdScoring] = useState(false);
+  // "No JD Analyze" — re-benchmark the current version against a target role
+  // without pasting a posting. Mirrors the upload page's general path.
+  const [generalRole, setGeneralRole] = useState("");
+  const [generalScoring, setGeneralScoring] = useState(false);
+  const [generalPanelOpen, setGeneralPanelOpen] = useState(false);
 
   async function handleJdScore() {
     if (!jdRole.trim() && !jdText.trim()) {
@@ -84,6 +89,22 @@ function AnalysisPage() {
       toast.error(e instanceof Error ? e.message : "Could not score against this posting");
     } finally {
       setJdScoring(false);
+    }
+  }
+
+  async function handleGeneralScore() {
+    if (!generalRole.trim()) {
+      toast.error("Enter a target role to benchmark against.");
+      return;
+    }
+    setGeneralScoring(true);
+    try {
+      await resumeService.analyze(id, { targetRole: generalRole.trim() });
+      toast.success("Re-benchmarked against your target role");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not re-benchmark");
+    } finally {
+      setGeneralScoring(false);
     }
   }
 
@@ -225,6 +246,13 @@ function AnalysisPage() {
               <Target className="h-4 w-4 text-primary" />
               Score against a job posting
             </button>
+            <button
+              onClick={() => setGeneralPanelOpen((o) => !o)}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/40 px-4 py-2 text-sm transition hover:border-primary/40 hover:bg-card"
+            >
+              <Target className="h-4 w-4 text-[color:var(--success)]" />
+              Re-benchmark against a role
+            </button>
             {a.analysisMode === "jd" && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                 <CheckCircle2 className="h-3.5 w-3.5" />
@@ -273,6 +301,44 @@ function AnalysisPage() {
                     <Target className="h-4 w-4" />
                   )}
                   {jdScoring ? "Scoring…" : "Score this posting"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={false}
+            animate={{ height: generalPanelOpen ? "auto" : 0, opacity: generalPanelOpen ? 1 : 0 }}
+            className="overflow-hidden"
+          >
+            <div className="glass mt-3 max-w-3xl space-y-3 rounded-2xl p-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Target role
+                </label>
+                <input
+                  value={generalRole}
+                  onChange={(e) => setGeneralRole(e.target.value)}
+                  placeholder="e.g. Senior Backend Engineer"
+                  className="h-10 w-full rounded-xl border border-input bg-card/60 px-3 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  No JD needed — we benchmark against senior roles in this title and surface the
+                  gaps.
+                </p>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={handleGeneralScore}
+                  disabled={generalScoring || !generalRole.trim()}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-4 py-2 text-sm font-medium text-white shadow-[var(--shadow-glow)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {generalScoring ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Target className="h-4 w-4" />
+                  )}
+                  {generalScoring ? "Re-benchmarking…" : "Re-benchmark"}
                 </button>
               </div>
             </div>
