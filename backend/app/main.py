@@ -60,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(roadmap.router)
 
     @app.get("/health", tags=["system"])
+    @app.get("/api/health", tags=["system"])
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
