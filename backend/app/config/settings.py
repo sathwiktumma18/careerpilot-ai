@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # launched from. backend/ is three levels up from this file.
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = BACKEND_DIR / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class Settings(BaseSettings):
